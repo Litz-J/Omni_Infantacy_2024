@@ -201,8 +201,8 @@ static void BMI088AccSPIFinishCallback(SPIInstance *spi)
 
 static void BMI088GyroSPIFinishCallback(SPIInstance *spi)
 {
-    // static BMI088Instance *bmi088;
-    // bmi088 = (BMI088Instance *)(spi->id);
+    static BMI088Instance *bmi088;
+    bmi088 = (BMI088Instance *)(spi->id);
     // 若不是异步,啥也不做;否则启动姿态的预测步(propagation)
 }
 
@@ -228,9 +228,7 @@ static void BMI088GyroINTCallback(GPIOInstance *gpio)
     bmi088 = (BMI088Instance *)(gpio->id);
     bmi088->update_flag.imu_ready = 1;
     bmi088->update_flag.gyro = 1;
-    uint8_t whoami_check = 0;
-    //do{BMI088GyroRead(bmi088, BMI088_GYRO_CHIP_ID, &whoami_check, 1);}while(whoami_check != BMI088_GYRO_CHIP_ID_VALUE);
-
+   
     BMI088GyroRead(bmi088, BMI088_GYRO_X_L, buf, 6);
     for (uint8_t i = 0; i < 3; i++)
             bmi088->gyro[i] = bmi088->BMI088_GYRO_SEN * (float)(int16_t)(((buf[2 * i + 1]) << 8) | buf[2 * i]);
@@ -435,8 +433,8 @@ BMI088Instance *BMI088Register(BMI088_Init_Config_s *config)
     // SPI_ACC DMA CALLBACK: 解算加速度计数据,清除温度wait标志位并启动温度传输,第二次进入中断时解算温度数据
 
     // 还有其他方案可用,比如阻塞等待传输完成,但是比较笨.
-        config->spi_acc_config.spi_work_mode = SPI_BLOCK_MODE;
-        config->spi_gyro_config.spi_work_mode = SPI_BLOCK_MODE;
+    config->spi_acc_config.spi_work_mode = SPI_BLOCK_MODE;
+    config->spi_gyro_config.spi_work_mode = SPI_BLOCK_MODE;
     // 根据参数选择工作模式
     bmi088_instance->spi_acc = SPIRegister(&config->spi_acc_config);
     bmi088_instance->spi_gyro = SPIRegister(&config->spi_gyro_config);

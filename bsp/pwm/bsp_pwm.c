@@ -40,6 +40,7 @@ PWMInstance *PWMRegister(PWM_Init_Config_s *config)
     pwm->id = config->id;
     pwm->tclk = PWMSelectTclk(pwm->htim);
     // 启动PWM
+    HAL_TIM_Base_Start(pwm->htim);
     HAL_TIM_PWM_Start(pwm->htim, pwm->channel);
     PWMSetPeriod(pwm, pwm->period);
     PWMSetDutyRatio(pwm, pwm->dutyratio);
@@ -61,23 +62,25 @@ void PWMStop(PWMInstance *pwm)
 
 /*
  * @brief 设置pwm周期
- *
+ * 
  * @param pwm pwm实例
- * @param period 周期 单位 s
+ * @param period 周期 单位 ms
  */
 void PWMSetPeriod(PWMInstance *pwm, float period)
 {
-    __HAL_TIM_SetAutoreload(pwm->htim, period*((pwm->tclk)/(pwm->htim->Init.Prescaler+1)));
+    pwm->period = period;
+    __HAL_TIM_SetAutoreload(pwm->htim, period/1000*((pwm->tclk)/(pwm->htim->Init.Prescaler+1)));
 }
 /*
     * @brief 设置pwm占空比
-    *
+    * 
     * @param pwm pwm实例
-    * @param dutyratio 占空比 0~1
+    * @param dutyratio 占空比 0~100
 */
 void PWMSetDutyRatio(PWMInstance *pwm, float dutyratio)
 {
-    __HAL_TIM_SetCompare(pwm->htim, pwm->channel, dutyratio * (pwm->htim->Instance->ARR));
+    pwm->dutyratio = dutyratio;
+    __HAL_TIM_SetCompare(pwm->htim, pwm->channel, dutyratio/100 * (pwm->htim->Instance->ARR));
 }
 
 /* 只是对HAL的函数进行了形式上的封装 */

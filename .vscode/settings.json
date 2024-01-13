@@ -56,7 +56,13 @@
         "master_process.h": "c",
         "bsp_can.h": "c",
         "can.h": "c",
-        "servo_motor.h": "c"
+        "servo_motor.h": "c",
+        "spi.h": "c",
+        "bsp_spi.h": "c",
+        "_default_types.h": "c",
+        "features.h": "c",
+        "bsp_gpio.h": "c",
+        "m15motor.h": "c"
     },
     // "clangd.arguments": [
     //     "-query-driver=C:/msys64/mingw64/bin/arm-none-eabi-*.exe",
