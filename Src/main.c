@@ -114,11 +114,10 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART6_UART_Init();
   MX_TIM8_Init();
-  MX_I2C2_Init();
   MX_I2C3_Init();
-  MX_SPI2_Init();
   MX_CRC_Init();
   MX_DAC_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 	RobotInit(); // 唯一的初始化函数
   LOGINFO("[main] SystemInit() and RobotInit() done");
