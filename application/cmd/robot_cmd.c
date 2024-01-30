@@ -13,7 +13,7 @@
 // bsp
 #include "bsp_dwt.h"
 #include "bsp_log.h"
-
+#include "bsp_pwm.h"
 // 私有宏,自动将编码器转换成角度值
 #define YAW_ALIGN_ANGLE (YAW_CHASSIS_ALIGN_ECD * ECD_ANGLE_COEF_DJI) // 对齐时的角度,0-360
 #define PTICH_HORIZON_ANGLE (PITCH_HORIZON_ECD * ECD_ANGLE_COEF_DJI) // pitch水平时电机的角度,0-360
@@ -49,7 +49,7 @@ static Robot_Status_e robot_state; // 机器人整体工作状态
 
 BMI088Instance *bmi088_test; // 云台IMU
 BMI088_Data_t bmi088_data;
-
+PWMInstance *pwm_test;
 M15MotorInstance *m15motor_test; // 底盘电机
 void RobotCMDInit()
 {
@@ -94,7 +94,13 @@ void RobotCMDInit()
         },
     };
     bmi088_test = BMI088Register(&bmi088_config);
-    
+    PWM_Init_Config_s pwm_config ={
+        .htim = &htim1,
+        .channel = TIM_CHANNEL_1,
+        .dutyratio = 50,
+        .period = 20,
+    };
+    pwm_test = PWMRegister(&pwm_config);
     rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
     vision_recv_data = VisionInit(&huart1); // 视觉通信串口
 
@@ -188,10 +194,10 @@ static void RemoteControlSet()
     chassis_cmd_send.vy = 10.0f * (float)rc_data[TEMP].rc.rocker_r1; // 1数值方向
 
     // 发射参数
-    if (switch_is_up(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[上],弹舱打开
-        ;                                            // 弹舱舵机控制,待添加servo_motor模块,开启
-    else
-        ; // 弹舱舵机控制,待添加servo_motor模块,关闭
+    if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 右侧开关状态[上],弹舱打开
+        shoot_cmd_send.load_mode = LOAD_1_BULLET; // 弹舱舵机控制,待添加servo_motor模块,开启
+    else if(switch_is_mid(rc_data[TEMP].rc.switch_left))
+        shoot_cmd_send.load_mode = LOAD_BURSTFIRE;; // 弹舱舵机控制,待添加servo_motor模块,关闭
 
     // 摩擦轮控制,拨轮向上打为负,向下为正
     if (rc_data[TEMP].rc.dial < -100) // 向上超过100,打开摩擦轮
@@ -200,7 +206,7 @@ static void RemoteControlSet()
         shoot_cmd_send.friction_mode = FRICTION_OFF;
     // 拨弹控制,遥控器固定为一种拨弹模式,可自行选择
     if (rc_data[TEMP].rc.dial < -500)
-        shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
+        ;
     else
         shoot_cmd_send.load_mode = LOAD_STOP;
     // 射频控制,固定每秒1发,后续可以根据左侧拨轮的值大小切换射频,

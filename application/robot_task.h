@@ -16,7 +16,7 @@
 #include "buzzer.h"
 
 #include "bsp_log.h"
-
+#include "gpio.h"
 // osThreadId insTaskHandle;
 osThreadId robotTaskHandle;
 osThreadId motorTaskHandle;
@@ -85,7 +85,7 @@ __attribute__((noreturn)) void StartMOTORTASK(void const *argument)
         motor_dt = DWT_GetTimeline_ms() - motor_start;
         if (motor_dt > 1)
             LOGERROR("[freeRTOS] MOTOR Task is being DELAY! dt = [%f]", &motor_dt);
-        osDelay(5);
+        osDelay(1);
     }
 }
 
@@ -118,6 +118,7 @@ __attribute__((noreturn)) void StartROBOTTASK(void const *argument)
     {
         robot_start = DWT_GetTimeline_ms();
         RobotTask();
+        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15); // 用于测试任务频率
         robot_dt = DWT_GetTimeline_ms() - robot_start;
         if (robot_dt > 5)
             LOGERROR("[freeRTOS] ROBOT core Task is being DELAY! dt = [%f]", &robot_dt);

@@ -94,7 +94,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+ 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -117,7 +117,6 @@ int main(void)
   MX_I2C3_Init();
   MX_CRC_Init();
   MX_DAC_Init();
-  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 	RobotInit(); // 唯一的初始化函数
   LOGINFO("[main] SystemInit() and RobotInit() done");

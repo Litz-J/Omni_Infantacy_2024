@@ -100,6 +100,7 @@ void SPITransRecv(SPIInstance *spi_ins, uint8_t *ptr_data_rx, uint8_t *ptr_data_
     {
         while (!SPIDeviceOnGoing[0])
         {
+            // 这么写不好,但是暂时没想到更好的办法
         };
     }
     else if (spi_ins->spi_handle->Instance == SPI2)
@@ -116,7 +117,7 @@ void SPITransRecv(SPIInstance *spi_ins, uint8_t *ptr_data_rx, uint8_t *ptr_data_
     switch (spi_ins->spi_work_mode)
     {
     case SPI_DMA_MODE:
-        HAL_SPI_TransmitReceive_DMA(spi_ins->spi_handle, ptr_data_tx, ptr_data_rx, len);
+         HAL_SPI_TransmitReceive_DMA(spi_ins->spi_handle, ptr_data_tx, ptr_data_rx, len);
         break;
     case SPI_IT_MODE:
         HAL_SPI_TransmitReceive_IT(spi_ins->spi_handle, ptr_data_tx, ptr_data_rx, len);
@@ -162,6 +163,7 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
             HAL_GPIO_ReadPin(spi_instance[i]->GPIOx, spi_instance[i]->cs_pin) == GPIO_PIN_RESET)
         {
             // 先拉高片选,结束传输,在判断是否有回调函数,如果有则调用回调函数
+            //@todo 是否写在dma发送中断完成中?
             HAL_GPIO_WritePin(spi_instance[i]->GPIOx, spi_instance[i]->cs_pin, GPIO_PIN_SET);
             *spi_instance[i]->cs_pin_state =
                 spi_instance[i]->CS_State =
@@ -173,7 +175,31 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
         }
     }
 }
-
+/**
+ * @brief 发送失败也搞个
+ *
+ * @param hspi spi handle
+ */
+void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
+{
+    for (size_t i = 0; i < idx; i++)
+    {
+        // 如果是当前spi硬件发出的complete,且cs_pin为低电平(说明正在传输),则尝试调用回调函数
+        if (spi_instance[i]->spi_handle == hspi && // 显然同一时间一条总线只能有一个从机在接收数据
+            HAL_GPIO_ReadPin(spi_instance[i]->GPIOx, spi_instance[i]->cs_pin) == GPIO_PIN_RESET)
+        {
+            // 先拉高片选,结束传输,在判断是否有回调函数,如果有则调用回调函数
+            HAL_GPIO_WritePin(spi_instance[i]->GPIOx, spi_instance[i]->cs_pin, GPIO_PIN_SET);
+            *spi_instance[i]->cs_pin_state =
+                spi_instance[i]->CS_State =
+                    HAL_GPIO_ReadPin(spi_instance[i]->GPIOx, spi_instance[i]->cs_pin);
+            // @todo 后续添加holdon模式,由用户自行决定何时释放片选,允许进行连续传输
+            if (spi_instance[i]->callback != NULL) // 回调函数不为空, 则调用回调函数
+                spi_instance[i]->callback(spi_instance[i]);
+            return;
+        }
+    }
+}
 /**
  * @brief 和RxCpltCallback共用解析即可,这里只是形式上封装一下,不用重复写
  *        这是对HAL库的__weak函数的重写,传输使用IT或DMA模式,在传输完成时会调用此函数

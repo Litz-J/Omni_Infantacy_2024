@@ -62,7 +62,8 @@
         "_default_types.h": "c",
         "features.h": "c",
         "bsp_gpio.h": "c",
-        "m15motor.h": "c"
+        "m15motor.h": "c",
+        "cmsis_os.h": "c"
     },
     // "clangd.arguments": [
     //     "-query-driver=C:/msys64/mingw64/bin/arm-none-eabi-*.exe",
