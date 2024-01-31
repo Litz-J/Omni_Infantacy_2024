@@ -16,7 +16,6 @@
 #include "buzzer.h"
 
 #include "bsp_log.h"
-#include "gpio.h"
 // osThreadId insTaskHandle;
 osThreadId robotTaskHandle;
 osThreadId motorTaskHandle;
@@ -118,11 +117,10 @@ __attribute__((noreturn)) void StartROBOTTASK(void const *argument)
     {
         robot_start = DWT_GetTimeline_ms();
         RobotTask();
-        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15); // 用于测试任务频率
         robot_dt = DWT_GetTimeline_ms() - robot_start;
         if (robot_dt > 5)
             LOGERROR("[freeRTOS] ROBOT core Task is being DELAY! dt = [%f]", &robot_dt);
-        osDelay(5);
+        osDelay(1);
     }
 }
 
@@ -135,6 +133,6 @@ __attribute__((noreturn)) void StartUITASK(void const *argument)
     {
         // 每给裁判系统发送一包数据会挂起一次,详见UITask函数的refereeSend()
         UITask();
-        osDelay(1); // 即使没有任何UI需要刷新,也挂起一次,防止卡在UITask中无法切换
+        osDelay(10); // 即使没有任何UI需要刷新,也挂起一次,防止卡在UITask中无法切换
     }
 }

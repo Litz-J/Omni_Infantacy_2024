@@ -10,6 +10,8 @@
 #include "dji_motor.h"
 #include "m15motor.h"
 #include "bmi088.h"
+#include "ist8310.h"
+#include "MahonyAHRS.h"
 // bsp
 #include "bsp_dwt.h"
 #include "bsp_log.h"
@@ -51,6 +53,18 @@ BMI088Instance *bmi088_test; // 云台IMU
 BMI088_Data_t bmi088_data;
 PWMInstance *pwm_test;
 M15MotorInstance *m15motor_test; // 底盘电机
+IST8310Instance *ist8310_test;
+float quat_test[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+void AHRS_update(float quat[4], float time, float gyro[3], float accel[3], float mag[3])
+{
+    MahonyAHRSupdate(quat, gyro[0], gyro[1], gyro[2], accel[0], accel[1], accel[2], mag[0], mag[1], mag[2]);
+}
+void get_angle(float q[4], float *yaw, float *pitch, float *roll)
+{
+    *yaw = atan2f(2.0f*(q[0]*q[3]+q[1]*q[2]), 2.0f*(q[0]*q[0]+q[1]*q[1])-1.0f);
+    *pitch = asinf(-2.0f*(q[1]*q[3]-q[0]*q[2]));
+    *roll = atan2f(2.0f*(q[0]*q[1]+q[2]*q[3]),2.0f*(q[0]*q[0]+q[3]*q[3])-1.0f);
+}
 void RobotCMDInit()
 {
     BMI088_Init_Config_s bmi088_config = {
@@ -94,12 +108,33 @@ void RobotCMDInit()
         },
     };
     bmi088_test = BMI088Register(&bmi088_config);
-    PWM_Init_Config_s pwm_config ={
+    PWM_Init_Config_s pwm_config = {
         .htim = &htim1,
         .channel = TIM_CHANNEL_1,
         .dutyratio = 50,
         .period = 20,
     };
+    IST8310_Init_Config_s ist8310_conf = {
+        .gpio_conf_exti = {
+            .exti_mode = GPIO_EXTI_MODE_RISING,
+            .GPIO_Pin = GPIO_PIN_3,
+            .GPIOx = GPIOG,
+            .gpio_model_callback = NULL,
+        },
+        .gpio_conf_rst = {
+            .exti_mode = GPIO_EXTI_MODE_NONE,
+            .GPIO_Pin = GPIO_PIN_6,
+            .GPIOx = GPIOG,
+            .gpio_model_callback = NULL,
+        },
+        .iic_config = {
+            .handle = &hi2c3,
+            .dev_address = IST8310_IIC_ADDRESS,
+            .work_mode = IIC_BLOCK_MODE,
+        },
+    };
+
+    ist8310_test = IST8310Init(&ist8310_conf);
     pwm_test = PWMRegister(&pwm_config);
     rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
     vision_recv_data = VisionInit(&huart1); // 视觉通信串口
@@ -195,9 +230,10 @@ static void RemoteControlSet()
 
     // 发射参数
     if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 右侧开关状态[上],弹舱打开
-        shoot_cmd_send.load_mode = LOAD_1_BULLET; // 弹舱舵机控制,待添加servo_motor模块,开启
-    else if(switch_is_mid(rc_data[TEMP].rc.switch_left))
-        shoot_cmd_send.load_mode = LOAD_BURSTFIRE;; // 弹舱舵机控制,待添加servo_motor模块,关闭
+        shoot_cmd_send.load_mode = LOAD_1_BULLET;     // 弹舱舵机控制,待添加servo_motor模块,开启
+    else if (switch_is_mid(rc_data[TEMP].rc.switch_left))
+        shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
+    ; // 弹舱舵机控制,待添加servo_motor模块,关闭
 
     // 摩擦轮控制,拨轮向上打为负,向下为正
     if (rc_data[TEMP].rc.dial < -100) // 向上超过100,打开摩擦轮
@@ -211,7 +247,6 @@ static void RemoteControlSet()
         shoot_cmd_send.load_mode = LOAD_STOP;
     // 射频控制,固定每秒1发,后续可以根据左侧拨轮的值大小切换射频,
     shoot_cmd_send.shoot_rate = 8;
-
 }
 
 /**
@@ -330,7 +365,9 @@ static void EmergencyHandler()
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
 void RobotCMDTask()
 {
-   BMI088Acquire(bmi088_test,&bmi088_data) ;
+    BMI088Acquire(bmi088_test, &bmi088_data);
+    AHRS_update(quat_test, 0.005f, bmi088_data.gyro, bmi088_data.acc, ist8310_test->mag);
+    get_angle(quat_test, &bmi088_data.angle[0], &bmi088_data.angle[1], &bmi088_data.angle[2]);
     // 从其他应用获取回传数据
 #ifdef ONE_BOARD
     SubGetMessage(chassis_feed_sub, (void *)&chassis_fetch_data);
@@ -344,10 +381,10 @@ void RobotCMDTask()
     // 根据gimbal的反馈值计算云台和底盘正方向的夹角,不需要传参,通过static私有变量完成
     CalcOffsetAngle();
     // 根据遥控器左侧开关,确定当前使用的控制模式为遥控器调试还是键鼠
-    //if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
-        RemoteControlSet();
-    //else if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
-     //   MouseKeySet();
+    // if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
+    RemoteControlSet();
+    // else if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
+    //    MouseKeySet();
 
     EmergencyHandler(); // 处理模块离线和遥控器急停等紧急情况
 

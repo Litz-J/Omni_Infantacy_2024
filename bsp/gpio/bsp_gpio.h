@@ -1,3 +1,6 @@
+#ifndef __BSP_GPIO_H__ 
+#define __BSP_GPIO_H__
+
 #include "gpio.h"
 #include "stdint.h"
 
@@ -85,3 +88,5 @@ void GPIOReset(GPIOInstance *_instance);
  * @return GPIO_PinState
  */
 GPIO_PinState GPIORead(GPIOInstance *_instance);
+
+#endif // __BSP_GPIO_H__

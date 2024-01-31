@@ -56,7 +56,7 @@ static void IST8310StartTransfer(GPIOInstance *gpio)
 
 IST8310Instance *IST8310Init(IST8310_Init_Config_s *config)
 {
-    static const uint8_t sleepTime = 50; // 50ms,ist8310的复位时间
+    static const float sleepTime = 0.05; // 50ms,ist8310的复位时间
     uint8_t check_who_i_am = 0;          // 用于检测ist8310是否连接成功
     // 这个变量只会用到一次,出了这个函数就没用了,所以不用分配空间,直接定义在栈上(因为多看一眼就会爆炸)
 
@@ -76,9 +76,9 @@ IST8310Instance *IST8310Init(IST8310_Init_Config_s *config)
 
     // 重置IST8310,需要HAL_Delay()等待传感器完成Reset
     GPIOReset(ist->gpio_rst);
-    HAL_Delay(sleepTime);
+    DWT_Delay(sleepTime);
     GPIOSet(ist->gpio_rst);
-    HAL_Delay(sleepTime);
+    DWT_Delay(sleepTime);
 
     // 读取IST8310的ID,如果不是0x10(whoami macro的值),则返回错误
     IICAccessMem(ist->iic, IST8310_WHO_AM_I, &check_who_i_am, 1, IIC_READ_MEM, 1);

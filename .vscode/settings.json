@@ -63,7 +63,11 @@
         "features.h": "c",
         "bsp_gpio.h": "c",
         "m15motor.h": "c",
-        "cmsis_os.h": "c"
+        "cmsis_os.h": "c",
+        "mahonyahrs.h": "c",
+        "daemon.h": "c",
+        "remote_control.h": "c",
+        "robot_cmd.h": "c"
     },
     // "clangd.arguments": [
     //     "-query-driver=C:/msys64/mingw64/bin/arm-none-eabi-*.exe",

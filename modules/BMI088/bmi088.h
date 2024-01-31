@@ -28,7 +28,7 @@ typedef struct
     float gyro[3];     // 陀螺仪数据,xyz
     float acc[3];      // 加速度计数据,xyz
     float temperature; // 温度
-
+   float angle[3]; // 角度
     // float timestamp; // 时间戳,单位为ms,用于计算两次采样的时间间隔,同时给视觉提供timeline
     // uint32_t count;  // 第count次采样,用于对齐时间戳
 } BMI088_Data_t;
