@@ -5,7 +5,7 @@
 #include "gpio.h"
 
 static DaemonInstance *bmi088_daemon_instance;
-
+static BMI088Instance *bmi088_instance;
 // ---------------------------以下私有函数,用于读写BMI088寄存器封装,blocking--------------------------------//
 /**
  * @brief 读取BMI088寄存器Accel. BMI088要求在不释放CS的情况下连续读取
@@ -193,52 +193,39 @@ static uint8_t BMI088GyroInit(BMI088Instance *bmi088)
  */
 static void BMI088AccSPIFinishCallback(SPIInstance *spi)
 {
-    // static BMI088Instance *bmi088;
-    // bmi088 = (BMI088Instance *)(spi->id);
-
+    bmi088_instance->update_flag.imu_ready = 1;
+    bmi088_instance->update_flag.acc = 1;
+    if(bmi088_instance->update_flag.gyro)
+        __HAL_GPIO_EXTI_GENERATE_SWIT(GPIO_PIN_0);
     // 若第一次读取加速度,则在这里启动温度读取
     // 如果使用异步姿态更新,此处唤醒量测更新的任务
 }
 
 static void BMI088GyroSPIFinishCallback(SPIInstance *spi)
 {
-    static uint8_t vision_track = 0;
-    static BMI088Instance *bmi088;
-    bmi088 = (BMI088Instance *)(spi->id);
-    if (vision_track++ % 10 == 0)
-    {
-        HAL_GPIO_TogglePin(GPIOF, GPIO_PIN_0);
-        vision_track = 0;
-    }
+    bmi088_instance->update_flag.imu_ready = 1;
+    bmi088_instance->update_flag.gyro = 1;
+    if(bmi088_instance->update_flag.acc)
+        __HAL_GPIO_EXTI_GENERATE_SWIT(GPIO_PIN_0);
     // 若不是异步,啥也不做;否则启动姿态的预测步(propagation)
 }
 
 static void BMI088AccINTCallback(GPIOInstance *gpio)
 {
-    static BMI088Instance *bmi088;
     static uint8_t buf[6] = {0}; // 最多读取6个byte(gyro/acc,temp是2)
-    bmi088 = (BMI088Instance *)(gpio->id);
-    bmi088->update_flag.imu_ready = 1;
-    bmi088->update_flag.acc = 1;
-    BMI088AccelRead(bmi088, BMI088_ACCEL_XOUT_L, buf, 6);
+    BMI088AccelRead(bmi088_instance, BMI088_ACCEL_XOUT_L, buf, 6);
     for (uint8_t i = 0; i < 3; i++)
-        bmi088->acc[i] = bmi088->acc_coef * (float)(int16_t)(((buf[2 * i + 1]) << 8) | buf[2 * i]);
+        bmi088_instance->acc[i] = bmi088_instance->acc_coef * (float)(int16_t)(((buf[2 * i + 1]) << 8) | buf[2 * i]);
     // 启动加速度计数据读取(和温度读取,如果有必要),并转换为实际值
     // 读取完毕会调用BMI088AccSPIFinishCallback
 }
 
 static void BMI088GyroINTCallback(GPIOInstance *gpio)
 {
-
-    static BMI088Instance *bmi088;
     static uint8_t buf[6] = {0}; // 最多读取6个byte(gyro/acc,temp是2)
-    bmi088 = (BMI088Instance *)(gpio->id);
-    bmi088->update_flag.imu_ready = 1;
-    bmi088->update_flag.gyro = 1;
-
-    BMI088GyroRead(bmi088, BMI088_GYRO_X_L, buf, 6);
+    BMI088GyroRead(bmi088_instance, BMI088_GYRO_X_L, buf, 6);
     for (uint8_t i = 0; i < 3; i++)
-        bmi088->gyro[i] = bmi088->BMI088_GYRO_SEN * (float)(int16_t)(((buf[2 * i + 1]) << 8) | buf[2 * i]);
+        bmi088_instance->gyro[i] = bmi088_instance->BMI088_GYRO_SEN * (float)(int16_t)(((buf[2 * i + 1]) << 8) | buf[2 * i]);
     // 启动陀螺仪数据读取,并转换为实际值
     // 读取完毕会调用BMI088GyroSPIFinishCallback
 }
@@ -256,42 +243,17 @@ static void BMI088GyroINTCallback(GPIOInstance *gpio)
  */
 uint8_t BMI088Acquire(BMI088Instance *bmi088, BMI088_Data_t *data_store)
 {
-    // 如果是blocking模式,则主动触发一次读取并返回数据
-    if (bmi088->work_mode == BMI088_BLOCK_PERIODIC_MODE)
-    {
-        static uint8_t buf[6] = {0}; // 最多读取6个byte(gyro/acc,temp是2)
-        // 读取accel的x轴数据首地址,bmi088内部自增读取地址 // 3* sizeof(int16_t)
-        BMI088AccelRead(bmi088, BMI088_ACCEL_XOUT_L, buf, 6);
-        for (uint8_t i = 0; i < 3; i++)
-            data_store->acc[i] = bmi088->acc_coef * (float)(int16_t)(((buf[2 * i + 1]) << 8) | buf[2 * i]);
-        BMI088GyroRead(bmi088, BMI088_GYRO_X_L, buf, 6); // 连续读取3个(3*2=6)轴的角速度
-        for (uint8_t i = 0; i < 3; i++)
-            data_store->gyro[i] = bmi088->BMI088_GYRO_SEN * (float)(int16_t)(((buf[2 * i + 1]) << 8) | buf[2 * i]);
-        BMI088AccelRead(bmi088, BMI088_TEMP_M, buf, 2); // 读温度,温度传感器在accel上
-        data_store->temperature = (float)(int16_t)(((buf[0] << 3) | (buf[1] >> 5))) * BMI088_TEMP_FACTOR + BMI088_TEMP_OFFSET;
+    static uint8_t buf[6] = {0}; // 最多读取6个byte(gyro/acc,temp是2)
+    // 读取accel的x轴数据首地址,bmi088内部自增读取地址 // 3* sizeof(int16_t)
+    BMI088AccelRead(bmi088, BMI088_ACCEL_XOUT_L, buf, 6);
+    for (uint8_t i = 0; i < 3; i++)
+        data_store->acc[i] = bmi088->acc_coef * (float)(int16_t)(((buf[2 * i + 1]) << 8) | buf[2 * i]);
+    BMI088GyroRead(bmi088, BMI088_GYRO_X_L, buf, 6); // 连续读取3个(3*2=6)轴的角速度
+    for (uint8_t i = 0; i < 3; i++)
+        data_store->gyro[i] = bmi088->BMI088_GYRO_SEN * (float)(int16_t)(((buf[2 * i + 1]) << 8) | buf[2 * i]);
+    BMI088AccelRead(bmi088, BMI088_TEMP_M, buf, 2); // 读温度,温度传感器在accel上
+    data_store->temperature = (float)(int16_t)(((buf[0] << 3) | (buf[1] >> 5))) * BMI088_TEMP_FACTOR + BMI088_TEMP_OFFSET;
 
-        return 1;
-    }
-    // 如果是IT模式,则检查标志位.当传感器数据准备好会触发外部中断,中断服务函数会将标志位置1
-    if (bmi088->work_mode == BMI088_BLOCK_TRIGGER_MODE && bmi088->update_flag.imu_ready == 1)
-    {
-        if (bmi088->update_flag.acc == 1)
-        {
-            memcpy(data_store->acc, bmi088->acc, 3 * sizeof(float));
-            bmi088->update_flag.acc = 0;
-            bmi088->update_flag.imu_ready = 0;
-        }
-        if (bmi088->update_flag.gyro == 1)
-        {
-            memcpy(data_store->gyro, bmi088->gyro, 3 * sizeof(float));
-            bmi088->update_flag.gyro = 0;
-            bmi088->update_flag.imu_ready = 0;
-        }
-        return 1;
-    }
-    // 如果数据还没准备好,则返回空数据?或者返回上一次的数据?或者返回错误码? @todo
-    if (bmi088->update_flag.imu_ready == 0)
-        return 0;
     return 1;
 }
 
@@ -409,7 +371,7 @@ void BMI088CalibrateIMU(BMI088Instance *_bmi088)
 
 BMI088Instance *BMI088Register(BMI088_Init_Config_s *config)
 {
-    BMI088Instance *bmi088_instance = (BMI088Instance *)zmalloc(sizeof(BMI088Instance));
+    bmi088_instance = (BMI088Instance *)zmalloc(sizeof(BMI088Instance));
     config->acc_int_config.id =
         config->gyro_int_config.id =
             config->spi_acc_config.id =
@@ -439,8 +401,8 @@ BMI088Instance *BMI088Register(BMI088_Init_Config_s *config)
     bmi088_instance->work_mode = config->work_mode;          // 恢复工作模式
     if (config->work_mode == BMI088_BLOCK_TRIGGER_MODE)//如果是中断读取模式,则注册中断
     {
-        bmi088_instance->spi_acc->spi_work_mode = config->spi_acc_config.spi_work_mode;
-        bmi088_instance->spi_gyro->spi_work_mode = config->spi_gyro_config.spi_work_mode;
+        bmi088_instance->spi_acc->spi_work_mode = SPI_DMA_MODE;
+        bmi088_instance->spi_gyro->spi_work_mode = SPI_DMA_MODE;
         // 设置回调函数
         bmi088_instance->spi_acc->callback = BMI088AccSPIFinishCallback;
         bmi088_instance->spi_gyro->callback = BMI088GyroSPIFinishCallback;

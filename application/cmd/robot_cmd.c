@@ -49,93 +49,9 @@ static Shoot_Upload_Data_s shoot_fetch_data; // 从发射获取的反馈信息
 
 static Robot_Status_e robot_state; // 机器人整体工作状态
 
-BMI088Instance *bmi088_test; // 云台IMU
-BMI088_Data_t bmi088_data;
-PWMInstance *pwm_test;
-M15MotorInstance *m15motor_test; // 底盘电机
-IST8310Instance *ist8310_test;
-float quat_test[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-void AHRS_update(float quat[4], float time, float gyro[3], float accel[3], float mag[3])
-{
-    MahonyAHRSupdate(quat, gyro[0], gyro[1], gyro[2], accel[0], accel[1], accel[2], mag[0], mag[1], mag[2]);
-}
-void get_angle(float q[4], float *yaw, float *pitch, float *roll)
-{
-    *yaw = atan2f(2.0f*(q[0]*q[3]+q[1]*q[2]), 2.0f*(q[0]*q[0]+q[1]*q[1])-1.0f);
-    *pitch = asinf(-2.0f*(q[1]*q[3]-q[0]*q[2]));
-    *roll = atan2f(2.0f*(q[0]*q[1]+q[2]*q[3]),2.0f*(q[0]*q[0]+q[3]*q[3])-1.0f);
-}
 void RobotCMDInit()
 {
-    BMI088_Init_Config_s bmi088_config = {
-        .cali_mode = BMI088_CALIBRATE_ONLINE_MODE,
-        .work_mode = BMI088_BLOCK_TRIGGER_MODE,
-        .spi_acc_config = {
-            .spi_handle = &hspi1,
-            .GPIOx = GPIOA,
-            .cs_pin = GPIO_PIN_4,
-            .spi_work_mode = SPI_DMA_MODE,
-        },
-        .acc_int_config = {
-            .GPIOx = GPIOC,
-            .GPIO_Pin = GPIO_PIN_4,
-            .exti_mode = GPIO_EXTI_MODE_RISING,
-        },
-        .spi_gyro_config = {
-            .spi_handle = &hspi1,
-            .GPIOx = GPIOB,
-            .cs_pin = GPIO_PIN_0,
-            .spi_work_mode = SPI_DMA_MODE,
-        },
-        .gyro_int_config = {
-            .GPIO_Pin = GPIO_PIN_5,
-            .GPIOx = GPIOC,
-            .exti_mode = GPIO_EXTI_MODE_RISING,
-        },
-        .heat_pwm_config = {
-            .htim = &htim10,
-            .channel = TIM_CHANNEL_1,
-            .period = 1,
-        },
-        .heat_pid_config = {
-            .Kp = 0.5,
-            .Ki = 0,
-            .Kd = 0,
-            .DeadBand = 0.1,
-            .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-            .IntegralLimit = 100,
-            .MaxOut = 100,
-        },
-    };
-    bmi088_test = BMI088Register(&bmi088_config);
-    PWM_Init_Config_s pwm_config = {
-        .htim = &htim1,
-        .channel = TIM_CHANNEL_1,
-        .dutyratio = 50,
-        .period = 20,
-    };
-    IST8310_Init_Config_s ist8310_conf = {
-        .gpio_conf_exti = {
-            .exti_mode = GPIO_EXTI_MODE_RISING,
-            .GPIO_Pin = GPIO_PIN_3,
-            .GPIOx = GPIOG,
-            .gpio_model_callback = NULL,
-        },
-        .gpio_conf_rst = {
-            .exti_mode = GPIO_EXTI_MODE_NONE,
-            .GPIO_Pin = GPIO_PIN_6,
-            .GPIOx = GPIOG,
-            .gpio_model_callback = NULL,
-        },
-        .iic_config = {
-            .handle = &hi2c3,
-            .dev_address = IST8310_IIC_ADDRESS,
-            .work_mode = IIC_BLOCK_MODE,
-        },
-    };
-
-    ist8310_test = IST8310Init(&ist8310_conf);
-    pwm_test = PWMRegister(&pwm_config);
+   
     rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
     vision_recv_data = VisionInit(&huart1); // 视觉通信串口
 
@@ -365,9 +281,6 @@ static void EmergencyHandler()
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
 void RobotCMDTask()
 {
-    BMI088Acquire(bmi088_test, &bmi088_data);
-    AHRS_update(quat_test, 0.005f, bmi088_data.gyro, bmi088_data.acc, ist8310_test->mag);
-    get_angle(quat_test, &bmi088_data.angle[0], &bmi088_data.angle[1], &bmi088_data.angle[2]);
     // 从其他应用获取回传数据
 #ifdef ONE_BOARD
     SubGetMessage(chassis_feed_sub, (void *)&chassis_fetch_data);

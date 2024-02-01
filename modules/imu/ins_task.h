@@ -1,27 +1,18 @@
-/**
- ******************************************************************************
- * @file    ins_task.h
- * @author  Wang Hongxi
- * @author  annotation and modification by NeoZeng
- * @version V2.0.0
- * @date    2022/2/23
- * @brief
- ******************************************************************************
- * @attention INS任务的初始化不要放入实时系统!应该由application拥有实例,随后在
- *            应用层调用初始化函数.
- *
- ******************************************************************************
- */
 #ifndef __INS_TASK_H
 #define __INS_TASK_H
 
 #include "stdint.h"
-#include "BMI088driver.h"
 #include "QuaternionEKF.h"
+#include "bmi088.h"
+#include "ist8310.h"
 
 #define X 0
 #define Y 1
 #define Z 2
+
+#define  YAW_ADDRESS 0
+#define PITCH_ADDRESS 1
+#define  ROLL_ADDRESS 2
 
 #define INS_TASK_PERIOD 1
 
@@ -29,11 +20,8 @@ typedef struct
 {
     float Gyro[3];  // 角速度
     float Accel[3]; // 加速度
-    // 还需要增加角速度数据
-    float Roll;
-    float Pitch;
-    float Yaw;
-    float YawTotalAngle;
+    float Angle[3]; // 角度
+    float TotalAngle[3]; // 总角度
 } attitude_t; // 最终解算得到的角度,以及yaw转动的总角度(方便多圈控制)
 
 typedef struct

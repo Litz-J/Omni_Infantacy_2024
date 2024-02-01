@@ -79,6 +79,9 @@ void Error_Handler(void);
 #define INT_ACC_Pin GPIO_PIN_4
 #define INT_ACC_GPIO_Port GPIOC
 #define INT_ACC_EXTI_IRQn EXTI4_IRQn
+#define INT_IMU_SOFT_Pin GPIO_PIN_0
+#define INT_IMU_SOFT_GPIO_Port GPIOG
+#define INT_IMU_SOFT_EXTI_IRQn EXTI0_IRQn
 #define INT_GYRO_Pin GPIO_PIN_5
 #define INT_GYRO_GPIO_Port GPIOC
 #define INT_GYRO_EXTI_IRQn EXTI9_5_IRQn

@@ -14,10 +14,10 @@ static Subscriber_t *gimbal_sub;                  // cmd控制消息订阅者
 static Gimbal_Upload_Data_s gimbal_feedback_data; // 回传给cmd的云台状态信息
 static Gimbal_Ctrl_Cmd_s gimbal_cmd_recv;         // 来自cmd的控制信息
 
-static BMI088Instance *bmi088; // 云台IMU
+static attitude_t *gimba_IMU_data; // 云台IMU数据
 void GimbalInit()
 {   
-    gimba_IMU_data = INS_Init(); // IMU先初始化,获取姿态数据指针赋给yaw电机的其他数据来源
+    gimba_IMU_data = INS_Init();
     // YAW
     Motor_Init_Config_s yaw_config = {
         .can_init_config = {
@@ -43,9 +43,9 @@ void GimbalInit()
                 .IntegralLimit = 3000,
                 .MaxOut = 20000,
             },
-            .other_angle_feedback_ptr = &gimba_IMU_data->YawTotalAngle,
-            // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
-            .other_speed_feedback_ptr = &gimba_IMU_data->Gyro[2],
+            // .other_angle_feedback_ptr = &gimba_IMU_data->YawTotalAngle,
+            // // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
+            // .other_speed_feedback_ptr = &gimba_IMU_data->Gyro[2],
         },
         .controller_setting_init_config = {
             .angle_feedback_source = OTHER_FEED,
@@ -78,9 +78,9 @@ void GimbalInit()
                 .IntegralLimit = 2500,
                 .MaxOut = 20000,
             },
-            .other_angle_feedback_ptr = &gimba_IMU_data->Pitch,
-            // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
-            .other_speed_feedback_ptr = (&gimba_IMU_data->Gyro[0]),
+            // .other_angle_feedback_ptr = &gimba_IMU_data->Pitch,
+            // // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
+            // .other_speed_feedback_ptr = (&gimba_IMU_data->Gyro[0]),
         },
         .controller_setting_init_config = {
             .angle_feedback_source = OTHER_FEED,

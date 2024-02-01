@@ -3,7 +3,7 @@
 
 #include "gpio.h"
 #include "stdint.h"
-
+#include "stm32f4xx_hal_gpio.h"
 #define GPIO_MX_DEVICE_NUM 10
 
 /**

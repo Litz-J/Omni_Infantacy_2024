@@ -67,7 +67,9 @@
         "mahonyahrs.h": "c",
         "daemon.h": "c",
         "remote_control.h": "c",
-        "robot_cmd.h": "c"
+        "robot_cmd.h": "c",
+        "ins_task.h": "c",
+        "gpio.h": "c"
     },
     // "clangd.arguments": [
     //     "-query-driver=C:/msys64/mingw64/bin/arm-none-eabi-*.exe",
