@@ -31,6 +31,7 @@ void VisionSetAltitude(float yaw, float pitch, float roll)
     send_data.pitch = pitch;
     send_data.roll = roll;
 }
+static USARTInstance *vision_usart_instance;
 
 /**
  * @brief 离线回调函数,将在daemon.c中被daemon task调用
@@ -41,6 +42,8 @@ void VisionSetAltitude(float yaw, float pitch, float roll)
  */
 static void VisionOfflineCallback(void *id)
 {
+    recv_data.yaw=0;
+    recv_data.pitch=0;
 #ifdef VISION_USE_UART
     USARTServiceInit(vision_usart_instance);
 #endif // !VISION_USE_UART
@@ -51,7 +54,6 @@ static void VisionOfflineCallback(void *id)
 
 #include "bsp_usart.h"
 
-static USARTInstance *vision_usart_instance;
 
 /**
  * @brief 接收解包回调函数,将在bsp_usart.c中被usart rx callback调用
@@ -62,7 +64,38 @@ static void DecodeVision()
 {
     uint16_t flag_register;
     DaemonReload(vision_daemon_instance); // 喂狗
-    get_protocol_info(vision_usart_instance->recv_buff, &flag_register, (uint8_t *)&recv_data.pitch);
+    if(1)
+    {
+            // 解析数据
+            if(vision_usart_instance->recv_buff[0]==0x57&&vision_usart_instance->recv_buff[1]== 0x04 &&vision_usart_instance->recv_buff[8]==0xAE&&vision_usart_instance->recv_buff[9]==0x08)
+            {
+                static float last_yaw[10], last_pitch[10];
+                for(int i=1;i<10;i++)
+                {
+                    last_yaw[i]=last_yaw[i-1];
+                    last_pitch[i]=last_pitch[i-1];
+                }
+                last_yaw[0]=recv_data.yaw;
+                last_pitch[0]=recv_data.pitch;
+                // 解码
+                //25 00 91 FF 00 00
+                recv_data.yaw = (int16_t)(vision_usart_instance->recv_buff[3]<<8|vision_usart_instance->recv_buff[2]);
+                recv_data.pitch = (int16_t)(vision_usart_instance->recv_buff[5]<<8|vision_usart_instance->recv_buff[4]);
+                
+                for(int i=2;i<10;i++)
+                {
+                    if(recv_data.yaw!=last_yaw[i]&&recv_data.pitch!=last_pitch[i])
+                    {
+                        recv_data.target_state=READY_TO_FIRE;
+                        break;
+                    }
+                    if(i==9)
+                        recv_data.target_state=NO_TARGET;
+                }
+                
+            }
+    }
+    //get_protocol_info(vision_usart_instance->recv_buff, &flag_register, (uint8_t *)&recv_data.pitch);
     // TODO: code to resolve flag_register;
 }
 

@@ -9,6 +9,7 @@
 #include "general_def.h"
 #include "dji_motor.h"
 #include "bmi088.h"
+#include "controller.h"
 // bsp
 #include "bsp_dwt.h"
 #include "bsp_log.h"
@@ -33,6 +34,8 @@ static Chassis_Upload_Data_s chassis_fetch_data; // 从底盘应用接收的反�
 static RC_ctrl_t *rc_data;              // 遥控器数据,初始化时返回
 static Vision_Recv_s *vision_recv_data; // 视觉接收数据指针,初始化时返回
 static Vision_Send_s vision_send_data;  // 视觉发送数据
+
+static PIDInstance *pid_pitch_vision,*pid_yaw_vision;
 
 static Publisher_t *gimbal_cmd_pub;            // 云台控制消息发布者
 static Subscriber_t *gimbal_feed_sub;          // 云台反馈信息订阅者
@@ -91,7 +94,7 @@ void RobotCMDInit()
     //     },
     // };
     //bmi088_test = BMI088Register(&bmi088_config);
-   rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
+    rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
     vision_recv_data = VisionInit(&huart1); // 视觉通信串口
 
     gimbal_cmd_pub = PubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
@@ -116,6 +119,32 @@ void RobotCMDInit()
     cmd_can_comm = CANCommInit(&comm_conf);
 #endif // GIMBAL_BOARD
     gimbal_cmd_send.pitch = 0;
+
+    //定义自瞄PID
+    PID_Init_Config_s pid_pitch_vision_config=
+    {
+        .Kp = 0.000599999796, // 4.5
+        .Ki = 0.00135000004,  // 0
+        .Kd = 0.0,  // 0
+        .IntegralLimit = 0.6,
+        .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit,
+        .MaxOut = 1,
+        .DeadBand=3,
+    },
+    pid_yaw_vision_config=
+    {
+        .Kp = 0.000669999979, // 4.5
+        .Ki = 0.00124999997,  // 0
+        .Kd = 0.0,  // 0
+        .IntegralLimit = 10,
+        .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit,
+        .MaxOut = 20,
+        .DeadBand=10,
+    };
+    pid_pitch_vision=malloc(sizeof(PIDInstance));
+    pid_yaw_vision=malloc(sizeof(PIDInstance));
+    PIDInit(pid_pitch_vision,&pid_pitch_vision_config);
+    PIDInit(pid_yaw_vision,&pid_yaw_vision_config);
 
     robot_state = ROBOT_READY; // 启动时机器人进入工作模式,后续加入所有应用初始化完成之后再进入
 }
@@ -154,53 +183,128 @@ static void CalcOffsetAngle()
 static void RemoteControlSet()
 {
     // 控制底盘和云台运行模式,云台待添加,云台是否始终使用IMU数据?
-    if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],底盘跟随云台
+    if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],小陀螺
     {
         chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
-        gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+        gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
+        shoot_cmd_send.friction_mode = FRICTION_OFF;
+        shoot_cmd_send.load_mode=LOAD_STOP;
+        
     }
     else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[中],底盘和云台分离,底盘保持不转动
     {
         chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
         gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
+        shoot_cmd_send.friction_mode = FRICTION_ON;
+        shoot_cmd_send.load_mode=LOAD_STOP;
     }
-
+    else if (switch_is_up(rc_data[TEMP].rc.switch_right)) // 跟随
+    {
+        chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
+        gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+        shoot_cmd_send.friction_mode = FRICTION_ON;
+        shoot_cmd_send.load_mode=LOAD_STOP;
+        
+    }
+    //普通模式，不自瞄调试就用这段
+    // 控制底盘和云台运行模式,云台待添加,云台是否始终使用IMU数据?
+    //     if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],小陀螺
+    // {
+    //     chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
+    //     gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+    //     shoot_cmd_send.friction_mode = FRICTION_ON;
+        
+    // }
+    // else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[中],底盘和云台分离,底盘保持不转动
+    // {
+    //     chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+    //     gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
+    //     shoot_cmd_send.friction_mode = FRICTION_OFF;
+    // }
+    // else if (switch_is_up(rc_data[TEMP].rc.switch_right)) // 跟随
+    // {
+    //     chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
+    //     gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+    //     shoot_cmd_send.friction_mode = FRICTION_ON;
+        
+    // }
+    float pitch_offset=-70;
+    float yaw_offset=0;
+    if(vision_recv_data->pitch==0 && pid_pitch_vision->Last_Measure==0)
+    {
+        pitch_offset=0;
+    }
+    else
+    {
+        pitch_offset=-70;
+    }
+    PIDCalculate(pid_pitch_vision,vision_recv_data->pitch,pitch_offset);
+    PIDCalculate(pid_yaw_vision,vision_recv_data->yaw,yaw_offset);
     // 云台参数,确定云台控制数据
     if (switch_is_mid(rc_data[TEMP].rc.switch_left)) // 左侧开关状态为[中],视觉模式
     {
         // 待添加,视觉会发来和目标的误差,同样将其转化为total angle的增量进行控制
         // ...
+        gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_+pid_yaw_vision->Output;
+        gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1-pid_pitch_vision->Output;
     }
     // 左侧开关状态为[下],或视觉未识别到目标,纯遥控器拨杆控制
     if (switch_is_down(rc_data[TEMP].rc.switch_left) || vision_recv_data->target_state == NO_TARGET)
     { // 按照摇杆的输出大小进行角度增量,增益系数需调整
-        gimbal_cmd_send.yaw += 0.005f * (float)rc_data[TEMP].rc.rocker_l_;
-        gimbal_cmd_send.pitch += 0.001f * (float)rc_data[TEMP].rc.rocker_l1;
+        gimbal_cmd_send.yaw += 0.003f * (float)rc_data[TEMP].rc.rocker_l_-pid_yaw_vision->Output;
+        gimbal_cmd_send.pitch -= 0.003f * (float)rc_data[TEMP].rc.rocker_l1-pid_pitch_vision->Output;
     }
+
     // 云台软件限位
+    if(gimbal_cmd_send.pitch>=PITCH_MAX_ANGLE)
+    {
+        gimbal_cmd_send.pitch=PITCH_MAX_ANGLE;
+    }
+    else if(gimbal_cmd_send.pitch<=PITCH_MIN_ANGLE)
+    {
+        gimbal_cmd_send.pitch=PITCH_MIN_ANGLE;
+    }
 
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
-    chassis_cmd_send.vx = 10.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
-    chassis_cmd_send.vy = 10.0f * (float)rc_data[TEMP].rc.rocker_r1; // 1数值方向
+    chassis_cmd_send.vx = 50.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
+    chassis_cmd_send.vy = 50.0f * (float)rc_data[TEMP].rc.rocker_r1; // 1数值方向
 
-    // 发射参数
-    if (switch_is_up(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[上],弹舱打开
-        ;                                            // 弹舱舵机控制,待添加servo_motor模块,开启
-    else
-        ; // 弹舱舵机控制,待添加servo_motor模块,关闭
+    // if(switch_is_down(rc_data[TEMP].rc.switch_left)&&shoot_cmd_send.friction_mode == FRICTION_ON)
+    //     {
+    //             shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
+    //     }
+    //         else
+    //         {
+    //             shoot_cmd_send.load_mode = LOAD_STOP;
+    //     }
 
+
+    // // 发射参数
+    // if (switch_is_up(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[上],弹舱打开
+    // {
+    //     //shoot_cmd_send.load_mode = LOAD_BURSTFIRE;                                            // 弹舱舵机控制,待添加servo_motor模块,开启
+    // }
+    // else
+    // {
+    //     //shoot_cmd_send.load_mode = LOAD_STOP;
+    //     // 弹舱舵机控制,待添加servo_motor模块,关闭
+
+    // }
+        
     // 摩擦轮控制,拨轮向上打为负,向下为正
-    if (rc_data[TEMP].rc.dial < -100) // 向上超过100,打开摩擦轮
-        shoot_cmd_send.friction_mode = FRICTION_ON;
-    else
-        shoot_cmd_send.friction_mode = FRICTION_OFF;
+    // if (rc_data[TEMP].rc.dial < -100) // 向上超过100,打开摩擦轮
+    //     shoot_cmd_send.friction_mode = FRICTION_ON;
+    // else
+    //     ;
+        //shoot_cmd_send.friction_mode = FRICTION_OFF;
     // 拨弹控制,遥控器固定为一种拨弹模式,可自行选择
-    if (rc_data[TEMP].rc.dial < -500)
-        shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
-    else
-        shoot_cmd_send.load_mode = LOAD_STOP;
+    // if (rc_data[TEMP].rc.dial < -500)
+    //     shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
+    // else
+    //     ;
+    //     //shoot_cmd_send.load_mode = LOAD_STOP;
     // 射频控制,固定每秒1发,后续可以根据左侧拨轮的值大小切换射频,
-    shoot_cmd_send.shoot_rate = 8;
+    shoot_cmd_send.shoot_rate = 2;
 }
 
 /**
@@ -353,5 +457,5 @@ void RobotCMDTask()
 #endif // GIMBAL_BOARD
     PubPushMessage(shoot_cmd_pub, (void *)&shoot_cmd_send);
     PubPushMessage(gimbal_cmd_pub, (void *)&gimbal_cmd_send);
-    VisionSend(&vision_send_data);
+    //VisionSend(&vision_send_data);
 }
