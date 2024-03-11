@@ -56,23 +56,13 @@
         "master_process.h": "c",
         "bsp_can.h": "c",
         "can.h": "c",
-        "servo_motor.h": "c"
+        "freertos.h": "c"
     },
     // "clangd.arguments": [
     //     "-query-driver=C:/msys64/mingw64/bin/arm-none-eabi-*.exe",
     // ],
     "cortex-debug.variableUseNaturalFormat": true,
     "C_Cpp.default.configurationProvider": "ms-vscode.makefile-tools",
-    // "C_Cpp.default.compilerPath": "arm-none-eabi-gcc.exe",
-    "makefile.compileCommandsPath": "build/compile_commands.json",
-    "C_Cpp.default.cStandard": "gnu17",
-    "C_Cpp.default.cppStandard": "gnu++20",
-    "C_Cpp.default.defines": [
-        "__CC_ARM",
-        "__STATIC_INLINE=static",
-        "__IO"
-    ],
-    "makefile.makefilePath": "",
-    "makefile.makePath": "mingw32-make",
-    "cortex-debug.openocdPath": "C:\\OPENOCD\\OPENOCD-20231002-0.12.0\\BIN\\OPENOCD.EXE"
+    // "C_Cpp.default.compilerPath": "D:\\Msys2\\mingw64\\bin\\arm-none-eabi-gcc.exe"
+    "makefile.compileCommandsPath": "build/compile_commands.json"
 }

@@ -267,7 +267,7 @@ static void RemoteControlSet()
 
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
     chassis_cmd_send.vx = 50.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
-    chassis_cmd_send.vy = 50.0f * (float)rc_data[TEMP].rc.rocker_r1; // 1数值方向
+    chassis_cmd_send.vy = 50.0f * (float)rc_data[TEMP].rc.rocker_r1; // 竖直方向
 
     // if(switch_is_down(rc_data[TEMP].rc.switch_left)&&shoot_cmd_send.friction_mode == FRICTION_ON)
     //     {
@@ -313,8 +313,8 @@ static void RemoteControlSet()
  */
 static void MouseKeySet()
 {
-    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].w * 300 - rc_data[TEMP].key[KEY_PRESS].s * 300; // 系数待测
-    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].s * 300 - rc_data[TEMP].key[KEY_PRESS].d * 300;
+    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * 9000 - rc_data[TEMP].key[KEY_PRESS].s * 9000; // 系数待测
+    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * 9000 - rc_data[TEMP].key[KEY_PRESS].d * 9000;
 
     gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 10; // 系数待测
     gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 10;
@@ -322,10 +322,10 @@ static void MouseKeySet()
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Z] % 3) // Z键设置弹速
     {
     case 0:
-        shoot_cmd_send.bullet_speed = 15;
+        shoot_cmd_send.bullet_speed = 30;
         break;
     case 1:
-        shoot_cmd_send.bullet_speed = 18;
+        shoot_cmd_send.bullet_speed = 30;
         break;
     default:
         shoot_cmd_send.bullet_speed = 30;
@@ -364,19 +364,52 @@ static void MouseKeySet()
         shoot_cmd_send.friction_mode = FRICTION_ON;
         break;
     }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_C] % 4) // C键设置底盘速度
-    {
+    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_C] % 10) // C键设置底盘功率
+    {//血量优先
     case 0:
-        chassis_cmd_send.chassis_speed_buff = 40;
+        chassis_cmd_send.chassis_power_limit = 45;
         break;
     case 1:
-        chassis_cmd_send.chassis_speed_buff = 60;
+        chassis_cmd_send.chassis_power_limit = 50;
         break;
     case 2:
-        chassis_cmd_send.chassis_speed_buff = 80;
+        chassis_cmd_send.chassis_power_limit = 55;
+        break;
+    case 3:
+        chassis_cmd_send.chassis_power_limit = 60;
+        break;
+    case 4:
+        chassis_cmd_send.chassis_power_limit = 65;
+        break;
+    case 5:
+        chassis_cmd_send.chassis_power_limit = 70;
+        break;
+    case 6:
+        chassis_cmd_send.chassis_power_limit = 75;
+        break;
+    case 7:
+        chassis_cmd_send.chassis_power_limit = 80;
+        break;
+    case 8:
+        chassis_cmd_send.chassis_power_limit = 90;
         break;
     default:
-        chassis_cmd_send.chassis_speed_buff = 100;
+        chassis_cmd_send.chassis_power_limit = 100;
+        break;
+    }
+    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_X] % 2) // X键降低底盘功率为前一级
+    {
+    case 1:
+        {
+            if(rc_data[TEMP].key_count[KEY_PRESS][Key_C] > 0)
+            {
+                rc_data[TEMP].key_count[KEY_PRESS][Key_C]--;
+                rc_data[TEMP].key_count[KEY_PRESS][Key_X]++;
+            }
+            
+        } 
+        break;
+    default:
         break;
     }
     switch (rc_data[TEMP].key[KEY_PRESS].shift) // 待添加 按shift允许超功率 消耗缓冲能量

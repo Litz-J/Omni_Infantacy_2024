@@ -91,11 +91,11 @@ typedef enum
 	LEN_game_state = 3,							 // 0x0001
 	LEN_game_result = 1,						 // 0x0002
 	LEN_game_robot_HP = 2,						 // 0x0003
-	LEN_event_data = 4,							 // 0x0101
+	LEN_event_data = 4,							 // 0x0101 122
 	LEN_supply_projectile_action = 4,			 // 0x0102
-	LEN_game_robot_state = 27,					 // 0x0201
+	LEN_game_robot_state = 27,					 // 0x0201 122
 	LEN_power_heat_data = 14,					 // 0x0202
-	LEN_game_robot_pos = 16,					 // 0x0203
+	LEN_game_robot_pos = 16,					 // 0x0203 122
 	LEN_buff_musk = 1,							 // 0x0204
 	LEN_aerial_robot_energy = 1,				 // 0x0205
 	LEN_robot_hurt = 1,							 // 0x0206
@@ -165,7 +165,7 @@ typedef struct
 	uint16_t remain_HP;
 	uint16_t max_HP;
 	uint16_t shooter_id1_17mm_cooling_rate;
-	uint16_t shooter_id1_17mm_cooling_limit;
+	uint16_t shooter_id1_17mm_cooling_limit;//枪口热量上限
 	uint16_t shooter_id1_17mm_speed_limit;
 	uint16_t shooter_id2_17mm_cooling_rate;
 	uint16_t shooter_id2_17mm_cooling_limit;
@@ -173,7 +173,7 @@ typedef struct
 	uint16_t shooter_id1_42mm_cooling_rate;
 	uint16_t shooter_id1_42mm_cooling_limit;
 	uint16_t shooter_id1_42mm_speed_limit;
-	uint16_t chassis_power_limit;
+	uint16_t chassis_power_limit;          //底盘功率上限
 	uint8_t mains_power_gimbal_output : 1;
 	uint8_t mains_power_chassis_output : 1;
 	uint8_t mains_power_shooter_output : 1;
@@ -182,8 +182,8 @@ typedef struct
 /* ID: 0X0202  Byte: 14    实时功率热量数据 */
 typedef struct
 {
-	uint16_t chassis_volt;
-	uint16_t chassis_current;
+	uint16_t chassis_volt;		   // 底盘电压
+	uint16_t chassis_current;	   // 底盘电流
 	float chassis_power;		   // 瞬时功率
 	uint16_t chassis_power_buffer; // 60焦耳缓冲能量
 	uint16_t shooter_heat0;		   // 17mm
@@ -223,8 +223,8 @@ typedef struct
 {
 	uint8_t bullet_type;
 	uint8_t shooter_id;
-	uint8_t bullet_freq;
-	float bullet_speed;
+	uint8_t bullet_freq;	//弹丸射频
+	float bullet_speed;  //弹丸h初速度
 } ext_shoot_data_t;
 
 /****************************机器人交互数据****************************/
