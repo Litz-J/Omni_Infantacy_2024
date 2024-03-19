@@ -147,6 +147,7 @@ typedef struct
     int chassis_speed_buff;
     int chassis_power_limit;
     // UI部分
+    uint8_t robot_real_level;
     //  ...
 
 } Chassis_Ctrl_Cmd_s;
