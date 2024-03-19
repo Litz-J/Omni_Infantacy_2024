@@ -10,6 +10,7 @@
 #include "dji_motor.h"
 #include "bmi088.h"
 #include "controller.h"
+#include "rm_referee.h"
 // bsp
 #include "bsp_dwt.h"
 #include "bsp_log.h"
@@ -51,6 +52,7 @@ static Robot_Status_e robot_state; // 机器人整体工作状态
 
 BMI088Instance *bmi088_test; // 云台IMU
 BMI088_Data_t bmi088_data;
+
 void RobotCMDInit()
 {
     // BMI088_Init_Config_s bmi088_config = {
@@ -313,8 +315,8 @@ static void RemoteControlSet()
  */
 static void MouseKeySet()
 {
-    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * 9000 - rc_data[TEMP].key[KEY_PRESS].s * 9000; // 系数待测
-    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * 9000 - rc_data[TEMP].key[KEY_PRESS].d * 9000;
+    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * 12000 - rc_data[TEMP].key[KEY_PRESS].s * 12000; // 系数待测
+    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * 12000 - rc_data[TEMP].key[KEY_PRESS].d * 12000;
 
     gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 10; // 系数待测
     gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 10;
@@ -356,6 +358,18 @@ static void MouseKeySet()
         shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
         break;
     }
+    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 3)  
+    {
+    case 0:
+        chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
+        break;
+    case 1:
+        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+        break;
+    default:
+        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
+        break;
+    }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_R] % 2) // R键开关弹舱
     {
     case 0:
@@ -377,34 +391,34 @@ static void MouseKeySet()
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_C] % 10) // C键设置底盘功率
     {//血量优先
     case 0:
-        chassis_cmd_send.chassis_power_limit = 45;
+        chassis_cmd_send.robot_real_level = 1;
         break;
     case 1:
-        chassis_cmd_send.chassis_power_limit = 50;
+        chassis_cmd_send.robot_real_level = 2;
         break;
     case 2:
-        chassis_cmd_send.chassis_power_limit = 55;
+        chassis_cmd_send.robot_real_level = 3;
         break;
     case 3:
-        chassis_cmd_send.chassis_power_limit = 60;
+        chassis_cmd_send.robot_real_level = 4;
         break;
     case 4:
-        chassis_cmd_send.chassis_power_limit = 65;
+        chassis_cmd_send.robot_real_level = 5;
         break;
     case 5:
-        chassis_cmd_send.chassis_power_limit = 70;
+        chassis_cmd_send.robot_real_level = 6;
         break;
     case 6:
-        chassis_cmd_send.chassis_power_limit = 75;
+        chassis_cmd_send.robot_real_level = 7;
         break;
     case 7:
-        chassis_cmd_send.chassis_power_limit = 80;
+        chassis_cmd_send.robot_real_level = 8;
         break;
     case 8:
-        chassis_cmd_send.chassis_power_limit = 90;
+        chassis_cmd_send.robot_real_level = 9;
         break;
     default:
-        chassis_cmd_send.chassis_power_limit = 100;
+        chassis_cmd_send.robot_real_level = 10;
         break;
     }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_X] % 2) // X键降低底盘功率为前一级
