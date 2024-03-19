@@ -185,10 +185,10 @@ static void RemoteControlSet()
     // 控制底盘和云台运行模式,云台待添加,云台是否始终使用IMU数据?
     if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],小陀螺
     {
-        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
+        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
         gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
         shoot_cmd_send.friction_mode = FRICTION_OFF;
-        shoot_cmd_send.load_mode=LOAD_STOP;
+        shoot_cmd_send.load_mode=LOAD_BURSTFIRE;
         
     }
     else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[中],底盘和云台分离,底盘保持不转动
@@ -196,7 +196,7 @@ static void RemoteControlSet()
         chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
         gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
         shoot_cmd_send.friction_mode = FRICTION_ON;
-        shoot_cmd_send.load_mode=LOAD_STOP;
+        shoot_cmd_send.load_mode=LOAD_1_BULLET;
     }
     else if (switch_is_up(rc_data[TEMP].rc.switch_right)) // 跟随
     {
@@ -266,8 +266,8 @@ static void RemoteControlSet()
     }
 
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
-    chassis_cmd_send.vx = 15.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
-    chassis_cmd_send.vy = 15.0f * (float)rc_data[TEMP].rc.rocker_r1; // 竖直方向
+    chassis_cmd_send.vx = 35.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
+    chassis_cmd_send.vy = 35.0f * (float)rc_data[TEMP].rc.rocker_r1; // 竖直方向
 
     // if(switch_is_down(rc_data[TEMP].rc.switch_left)&&shoot_cmd_send.friction_mode == FRICTION_ON)
     //     {
@@ -304,7 +304,7 @@ static void RemoteControlSet()
     //     ;
     //     //shoot_cmd_send.load_mode = LOAD_STOP;
     // 射频控制,固定每秒1发,后续可以根据左侧拨轮的值大小切换射频,
-    shoot_cmd_send.shoot_rate = 2;
+    shoot_cmd_send.shoot_rate = 15;
 }
 
 /**
@@ -318,6 +318,16 @@ static void MouseKeySet()
 
     gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 10; // 系数待测
     gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 10;
+
+    // 云台软件限位
+    if(gimbal_cmd_send.pitch>=PITCH_MAX_ANGLE)
+    {
+        gimbal_cmd_send.pitch=PITCH_MAX_ANGLE;
+    }
+    else if(gimbal_cmd_send.pitch<=PITCH_MIN_ANGLE)
+    {
+        gimbal_cmd_send.pitch=PITCH_MIN_ANGLE;
+    }
 
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Z] % 3) // Z键设置弹速
     {

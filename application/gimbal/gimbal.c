@@ -24,24 +24,24 @@ void GimbalInit()
             .can_handle = &hcan1,
             .tx_id = 1,
         },
+        //无头：angle:8,0,0.32,max400,speed:40,200,0,max25000
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp = 26.7, // 8
+                .Kp = 28.5, //26.7
                 .Ki = 0,
-                .Kd = 2.2,
-                .DeadBand = 0.04,
+                .Kd = 2.2997,  //2.2
+                .DeadBand = 0.025,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .IntegralLimit = 100,
-
                 .MaxOut = 400,
             },
             .speed_PID = {
-                .Kp = 80,  // 50
-                .Ki = 420, // 200
+                .Kp = 80,  // 80
+                .Ki = 420, // 420
                 .Kd = 0,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .IntegralLimit = 9000,
-                .MaxOut = 25000,
+                .MaxOut = 25000, //25000
             },
             .other_angle_feedback_ptr = &gimba_IMU_data->YawTotalAngle,
             // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
@@ -64,20 +64,21 @@ void GimbalInit()
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp = 24, // 10
-                .Ki = 0,
-                .Kd = 0.51,
-                .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
+                .Kp = 40, // 10
+                .Ki = 0.05,
+                .Kd = 1.5,
+                .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
                 .IntegralLimit = 5,
-                .MaxOut = 500,
+                .MaxOut = 100,
+                .Derivative_LPF_RC= 0.00600000005,
             },
             .speed_PID = {
-                .Kp = 46.5,  // 50
-                .Ki = 505, // 350
+                .Kp = 90,  // 50
+                .Ki = 405, // 350
                 .Kd = 0,   // 0
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-                .IntegralLimit = 6500,
-                .MaxOut = 20000,
+                .IntegralLimit = 7500,
+                .MaxOut = 24000,
             },
             .other_angle_feedback_ptr = &gimba_IMU_data->Pitch,
             // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明

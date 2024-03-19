@@ -93,28 +93,31 @@ void ShootInit()
         .controller_param_init_config = {
             .angle_PID = {
                 // 如果启用位置环来控制发弹,需要较大的I值保证输出力矩的线性度否则出现接近拨出的力矩大幅下降
-                .Kp = 50, // 10
-                .Ki = 270,
+                .Kp = 25, // 10
+                .Ki = 100,
                 .Kd = 0.0,
-                .MaxOut = 55000,
-                .Improve = PID_Integral_Limit,
-                .IntegralLimit = 40000,
+                .MaxOut = 50000,
+                .Improve = PID_Integral_Limit | PID_DerivativeFilter,
+                .IntegralLimit = 30000,
+                .Derivative_LPF_RC =0,
             },
             .speed_PID = {
-                .Kp = 0.85, // 10
-                .Ki = 1.65, // 1
-                .Kd = 0,
-                .Improve = PID_Integral_Limit,
-                .IntegralLimit = 7000,
+                .Kp = 8, // 10
+                .Ki = 0.800000012, // 1
+                .Kd = 0.0250000004,
+                .Improve = PID_Integral_Limit | PID_DerivativeFilter,
+                .IntegralLimit = 3000,
                 .MaxOut = 9000,
+                .Derivative_LPF_RC = 0.04,
             },
             .current_PID = {
-                .Kp = 0.78, // 0.7
-                .Ki = 0.15, // 0.1
-                .Kd = 0,
-                .Improve = PID_Integral_Limit,
+                .Kp = 20, // 0.7
+                .Ki = 0.3, // 0.1
+                .Kd = 0.00079999998,
+                .Improve = PID_Integral_Limit | PID_DerivativeFilter,
                 .IntegralLimit = 3000,
                 .MaxOut = 10000,
+                .Derivative_LPF_RC = 0.0,
             },
         },
         .controller_setting_init_config = {
@@ -131,9 +134,15 @@ void ShootInit()
     shoot_sub = SubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
 }
 
+float speedref=0;
+float torque2006 ;
+
 /* 机器人发射机构控制核心任务 */
 void ShootTask()
 {
+    torque2006=loader->measure.real_current/16384.0f*36.0f;
+
+
     // 从cmd获取控制数据
     SubGetMessage(shoot_sub, &shoot_cmd_recv);
 
@@ -162,20 +171,26 @@ void ShootTask()
     {
     // 停止拨盘
     case LOAD_STOP:
-        // DJIMotorOuterLoop(loader, SPEED_LOOP); // 切换到速度环
-        // DJIMotorSetRef(loader, 0);             // 同时设定参考值为0,这样停止的速度最快
+        //需要测试这个逻辑行不行，先退弹然后关闭电机输出
         if(is_loadstop==false)//退弹
         {
             DJIMotorOuterLoop(loader, ANGLE_LOOP);                                              // 切换到角度环
             DJIMotorSetRef(loader, loader->measure.total_angle - ONE_BULLET_DELTA_ANGLE);
-            hibernate_time = DWT_GetTimeline_ms();                                              // 记录触发指令的时间
-            dead_time = 500;
             is_loadstop=true;
             is_loadenable=false;  
+            hibernate_time = DWT_GetTimeline_ms();                                              // 记录触发指令的时间
+            dead_time = 400;
+            break;
+        }
+        if(!IS_HIBERNATED)
+        {
+            DJIMotorOuterLoop(loader, CURRENT_LOOP);
+            DJIMotorStop(loader);
         }
         break;
     // 单发模式,根据鼠标按下的时间,触发一次之后需要进入不响应输入的状态(否则按下的时间内可能多次进入,导致多次发射)
     case LOAD_1_BULLET:                                                                     // 激活能量机关/干扰对方用,英雄用.
+        DJIMotorEnable(loader);
         if(!IS_HIBERNATED)
         {
             DJIMotorOuterLoop(loader, ANGLE_LOOP);                                              // 切换到角度环
@@ -189,12 +204,13 @@ void ShootTask()
                 is_loadenable=true;
             }
             hibernate_time = DWT_GetTimeline_ms();                                              // 记录触发指令的时间
-            dead_time = 1500;                                                                    // 完成1发弹丸发射的时间
+            dead_time = 1000;                                                                    // 完成1发弹丸发射的时间
         }
         
         break;
     // 三连发,如果不需要后续可能删除
     case LOAD_3_BULLET:
+        DJIMotorEnable(loader);
         if(!IS_HIBERNATED)
         {
             DJIMotorOuterLoop(loader, ANGLE_LOOP);                                                  // 切换到速度环
@@ -205,13 +221,18 @@ void ShootTask()
         break;
     // 连发模式,对速度闭环,射频后续修改为可变,目前固定为1Hz
     case LOAD_BURSTFIRE:
+        DJIMotorEnable(loader);
         DJIMotorOuterLoop(loader, SPEED_LOOP);
         DJIMotorSetRef(loader, shoot_cmd_recv.shoot_rate * 360 * REDUCTION_RATIO_LOADER / NUM_PER_CIRCLE);
+        // DJIMotorOuterLoop(loader, CURRENT_LOOP);
+        //DJIMotorSetRef(loader, speedref);
+        
         // x颗/秒换算成速度: 已知一圈的载弹量,由此计算出1s需要转的角度,注意换算角速度(DJIMotor的速度单位是angle per second)
         break;
     // 拨盘反转,对速度闭环,后续增加卡弹检测(通过裁判系统剩余热量反馈和电机电流)
     // 也有可能需要从switch-case中独立出来
     case LOAD_REVERSE:
+        DJIMotorEnable(loader);
         DJIMotorOuterLoop(loader, SPEED_LOOP);
         DJIMotorSetRef(loader, shoot_cmd_recv.shoot_rate * 360 * REDUCTION_RATIO_LOADER / NUM_PER_CIRCLE);
         // ...
