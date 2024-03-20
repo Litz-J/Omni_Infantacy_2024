@@ -137,6 +137,7 @@ void ShootInit()
 
 float speedref=0;
 float torque2006 ;
+float fric_v=46500;//47500,28.5m/s
 
 /* 机器人发射机构控制核心任务 */
 void ShootTask()
@@ -265,8 +266,8 @@ void ShootTask()
             DJIMotorSetRef(friction_r, 0);
             break;
         default: // 当前为了调试设定的默认值4000,因为还没有加入裁判系统无法读取弹速.
-            DJIMotorSetRef(friction_l, 25000);
-            DJIMotorSetRef(friction_r, 25000);
+            DJIMotorSetRef(friction_l, fric_v);
+            DJIMotorSetRef(friction_r, fric_v);
             break;
         }
     }
