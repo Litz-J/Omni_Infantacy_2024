@@ -137,7 +137,9 @@ void ShootInit()
 
 float speedref=0;
 float torque2006 ;
-float fric_v=46500;//47500,28.5m/s
+float fric_v=46500;
+//47500,28.5m/s
+//46500,27.8m/s
 
 /* 机器人发射机构控制核心任务 */
 void ShootTask()
