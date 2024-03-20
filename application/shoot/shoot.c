@@ -53,14 +53,14 @@ void ShootInit()
         .controller_param_init_config = {
             .speed_PID = {
                 .Kp = 2.1, // 20
-                .Ki = 20, // 1
+                .Ki = 15, // 1
                 .Kd = 0.0,
                 .Improve = PID_Integral_Limit,
                 .IntegralLimit = 10000,
                 .MaxOut = 15000,
             },
             .current_PID = {
-                .Kp = 0.75, // 0.7
+                .Kp = 0.8, // 0.7
                 .Ki = 0.125, // 0.1
                 .Kd = 0,
                 .Improve = PID_Integral_Limit,
@@ -112,7 +112,7 @@ void ShootInit()
                 .Derivative_LPF_RC = 0.04,
             },
             .current_PID = {
-                .Kp = 5, // 0.7
+                .Kp = 3, // 0.7
                 .Ki = 0.3, // 0.1
                 .Kd = 0.00079999998,
                 .Improve = PID_Integral_Limit | PID_DerivativeFilter,
@@ -124,7 +124,7 @@ void ShootInit()
         .controller_setting_init_config = {
             .angle_feedback_source = MOTOR_FEED, .speed_feedback_source = MOTOR_FEED,
             .outer_loop_type = SPEED_LOOP, // 初始化成SPEED_LOOP,让拨盘停在原地,防止拨盘上电时乱转
-            .close_loop_type = CURRENT_LOOP | SPEED_LOOP| ANGLE_LOOP,
+            .close_loop_type = CURRENT_LOOP | SPEED_LOOP | ANGLE_LOOP,
             .motor_reverse_flag = MOTOR_DIRECTION_NORMAL, // 注意方向设置为拨盘的拨出的击发方向
         },
         .motor_type = M2006 
@@ -272,11 +272,13 @@ void ShootTask()
             DJIMotorSetRef(friction_r, fric_v);
             break;
         }
+        shoot_feedback_data.shoot_status=SHOOT_READY;
     }
     else // 关闭摩擦轮
     {
         DJIMotorSetRef(friction_l, 0);
         DJIMotorSetRef(friction_r, 0);
+        shoot_feedback_data.shoot_status=SHOOT_STOP;
     }
 
     // 开关弹舱盖

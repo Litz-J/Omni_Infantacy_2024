@@ -370,7 +370,7 @@ static void MouseKeySet()
         shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
         break;
     }
-    if(rc_data[TEMP].mouse.press_l==0)
+    if(rc_data[TEMP].mouse.press_l==0 | shoot_fetch_data.shoot_status != SHOOT_STOP)
     {
         shoot_cmd_send.load_mode = LOAD_STOP;
     }

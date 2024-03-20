@@ -124,11 +124,23 @@ typedef enum
     LOAD_BURSTFIRE, // 连发
 } loader_mode_e;
 
+//发射系统反馈的发射状态
+typedef enum
+{
+    SHOOT_STOP = 0,
+    SHOOT_PREPARE,  //正在启动，比如摩擦轮未达到目标速度等
+    SHOOT_READY,    //可以发射
+    SHOOT_BULLETING,//正在发射，比如左键
+} Shoot_Status_e;
+
 // 功率限制,从裁判系统获取,是否有必要保留?
 typedef struct
 { // 功率控制
     float chassis_power_mx;
 } Chassis_Power_Data_s;
+
+
+
 
 /* ----------------CMD应用发布的控制数据,应当由gimbal/chassis/shoot订阅---------------- */
 /**
@@ -205,6 +217,7 @@ typedef struct
 
 typedef struct
 {
+    Shoot_Status_e shoot_status;
     // code to go here
     // ...
 } Shoot_Upload_Data_s;
