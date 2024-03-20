@@ -189,7 +189,7 @@ static void RemoteControlSet()
     {
         chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
         gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
-        shoot_cmd_send.friction_mode = FRICTION_OFF;
+        shoot_cmd_send.friction_mode = FRICTION_ON;
         shoot_cmd_send.load_mode=LOAD_BURSTFIRE;
         
     }
@@ -268,8 +268,8 @@ static void RemoteControlSet()
     }
 
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
-    chassis_cmd_send.vx = 35.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
-    chassis_cmd_send.vy = 35.0f * (float)rc_data[TEMP].rc.rocker_r1; // 竖直方向
+    chassis_cmd_send.vx = 20.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
+    chassis_cmd_send.vy = 20.0f * (float)rc_data[TEMP].rc.rocker_r1; // 竖直方向
 
     // if(switch_is_down(rc_data[TEMP].rc.switch_left)&&shoot_cmd_send.friction_mode == FRICTION_ON)
     //     {
@@ -306,7 +306,7 @@ static void RemoteControlSet()
     //     ;
     //     //shoot_cmd_send.load_mode = LOAD_STOP;
     // 射频控制,固定每秒1发,后续可以根据左侧拨轮的值大小切换射频,
-    shoot_cmd_send.shoot_rate = 15;
+    shoot_cmd_send.shoot_rate = 8;
 }
 
 /**

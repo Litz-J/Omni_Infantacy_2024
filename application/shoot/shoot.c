@@ -93,13 +93,14 @@ void ShootInit()
         .controller_param_init_config = {
             .angle_PID = {
                 // 如果启用位置环来控制发弹,需要较大的I值保证输出力矩的线性度否则出现接近拨出的力矩大幅下降
-                .Kp = 25, // 10
-                .Ki = 100,
+                .Kp = 5, // 10
+                .Ki = 60,
                 .Kd = 0.0,
                 .MaxOut = 50000,
                 .Improve = PID_Integral_Limit | PID_DerivativeFilter,
-                .IntegralLimit = 30000,
+                .IntegralLimit = 20000,
                 .Derivative_LPF_RC =0,
+                .DeadBand=750,
             },
             .speed_PID = {
                 .Kp = 8, // 10
@@ -111,13 +112,13 @@ void ShootInit()
                 .Derivative_LPF_RC = 0.04,
             },
             .current_PID = {
-                .Kp = 20, // 0.7
+                .Kp = 5, // 0.7
                 .Ki = 0.3, // 0.1
                 .Kd = 0.00079999998,
                 .Improve = PID_Integral_Limit | PID_DerivativeFilter,
                 .IntegralLimit = 3000,
                 .MaxOut = 10000,
-                .Derivative_LPF_RC = 0.0,
+                .Derivative_LPF_RC = 0.00125,
             },
         },
         .controller_setting_init_config = {
@@ -182,11 +183,11 @@ void ShootTask()
             dead_time = 400;
             break;
         }
-        if(!IS_HIBERNATED)
-        {
-            DJIMotorOuterLoop(loader, CURRENT_LOOP);
-            DJIMotorStop(loader);
-        }
+        // if(!IS_HIBERNATED)
+        // {
+        //     DJIMotorOuterLoop(loader, CURRENT_LOOP);
+        //     DJIMotorStop(loader);
+        // }
         break;
     // 单发模式,根据鼠标按下的时间,触发一次之后需要进入不响应输入的状态(否则按下的时间内可能多次进入,导致多次发射)
     case LOAD_1_BULLET:                                                                     // 激活能量机关/干扰对方用,英雄用.
