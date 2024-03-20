@@ -137,7 +137,7 @@ void ShootInit()
 
 float speedref=0;
 float torque2006 ;
-float fric_v=46500;
+float fric_v=48000;
 //47500,28.5m/s
 //46500,27.8m/s
 
@@ -264,8 +264,8 @@ void ShootTask()
             DJIMotorSetRef(friction_r, 0);
             break;
         case SMALL_AMU_30:
-            DJIMotorSetRef(friction_l, 0);
-            DJIMotorSetRef(friction_r, 0);
+            DJIMotorSetRef(friction_l, fric_v);
+            DJIMotorSetRef(friction_r, fric_v);
             break;
         default: // 当前为了调试设定的默认值4000,因为还没有加入裁判系统无法读取弹速.
             DJIMotorSetRef(friction_l, fric_v);

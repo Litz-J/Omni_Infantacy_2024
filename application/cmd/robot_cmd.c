@@ -187,24 +187,24 @@ static void RemoteControlSet()
     // 控制底盘和云台运行模式,云台待添加,云台是否始终使用IMU数据?
     if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],小陀螺
     {
-        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
         gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
-        shoot_cmd_send.friction_mode = FRICTION_ON;
-        shoot_cmd_send.load_mode=LOAD_1_BULLET;
+        shoot_cmd_send.friction_mode = FRICTION_OFF;
+        shoot_cmd_send.load_mode=LOAD_STOP;
         
     }
     else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[中],底盘和云台分离,底盘保持不转动
     {
         chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
         gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
-        shoot_cmd_send.friction_mode = FRICTION_ON;
-        shoot_cmd_send.load_mode=LOAD_BURSTFIRE;
+        shoot_cmd_send.friction_mode = FRICTION_OFF;
+        shoot_cmd_send.load_mode=LOAD_STOP;
     }
     else if (switch_is_up(rc_data[TEMP].rc.switch_right)) // 跟随
     {
-        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+        chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
         gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
-        shoot_cmd_send.friction_mode = FRICTION_ON;
+        shoot_cmd_send.friction_mode = FRICTION_OFF;
         shoot_cmd_send.load_mode=LOAD_STOP;
         
     }
@@ -315,8 +315,8 @@ static void RemoteControlSet()
  */
 static void MouseKeySet()
 {
-    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * 12000 - rc_data[TEMP].key[KEY_PRESS].s * 12000; // 系数待测
-    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * 12000 - rc_data[TEMP].key[KEY_PRESS].d * 12000;
+    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * 10000 - rc_data[TEMP].key[KEY_PRESS].s * 10000; // 系数待测
+    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * 10000 - rc_data[TEMP].key[KEY_PRESS].d * 10000;
 
     gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 10; // 系数待测
     gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 10;
@@ -343,7 +343,22 @@ static void MouseKeySet()
         shoot_cmd_send.bullet_speed = 30;
         break;
     }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 4) // E键设置发射模式
+    // switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 4) // E键设置发射模式
+    // {
+    // case 0:
+    //     shoot_cmd_send.load_mode = LOAD_STOP;
+    //     break;
+    // case 1:
+    //     shoot_cmd_send.load_mode = LOAD_1_BULLET;
+    //     break;
+    // case 2:
+    //     shoot_cmd_send.load_mode = LOAD_3_BULLET;
+    //     break;
+    // default:
+    //     shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
+    //     break;
+    // }
+    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 3) // E键设置发射模式
     {
     case 0:
         shoot_cmd_send.load_mode = LOAD_STOP;
@@ -351,12 +366,13 @@ static void MouseKeySet()
     case 1:
         shoot_cmd_send.load_mode = LOAD_1_BULLET;
         break;
-    case 2:
-        shoot_cmd_send.load_mode = LOAD_3_BULLET;
-        break;
     default:
         shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
         break;
+    }
+    if(rc_data[TEMP].mouse.press_l==0)
+    {
+        shoot_cmd_send.load_mode = LOAD_STOP;
     }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 3)  
     {
