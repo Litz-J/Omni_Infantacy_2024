@@ -343,21 +343,18 @@ static void MouseKeySet()
         shoot_cmd_send.bullet_speed = 30;
         break;
     }
-    // switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 4) // E键设置发射模式
-    // {
-    // case 0:
-    //     shoot_cmd_send.load_mode = LOAD_STOP;
-    //     break;
-    // case 1:
-    //     shoot_cmd_send.load_mode = LOAD_1_BULLET;
-    //     break;
-    // case 2:
-    //     shoot_cmd_send.load_mode = LOAD_3_BULLET;
-    //     break;
-    // default:
-    //     shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
-    //     break;
-    // }
+    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 4) // Q键设置底盘模式
+    {
+    case 0:
+        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+        break;
+    case 1:
+        chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
+        break;
+    default:
+        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
+        break;
+    }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 3) // E键设置发射模式
     {
     case 0:
