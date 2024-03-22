@@ -56,7 +56,8 @@
         "master_process.h": "c",
         "bsp_can.h": "c",
         "can.h": "c",
-        "freertos.h": "c"
+        "freertos.h": "c",
+        "ui_types.h": "c"
     },
     // "clangd.arguments": [
     //     "-query-driver=C:/msys64/mingw64/bin/arm-none-eabi-*.exe",

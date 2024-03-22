@@ -49,7 +49,7 @@ referee_info_t *UITaskInit(UART_HandleTypeDef *referee_usart_handle, Referee_Int
 
 void UITask()
 {
-    RobotModeTest(Interactive_data); // 测试用函数，实现模式自动变化,用于检查该任务和裁判系统是否连接正常
+    // RobotModeTest(Interactive_data); // 测试用函数，实现模式自动变化,用于检查该任务和裁判系统是否连接正常
     MyUIRefresh(referee_recv_info, Interactive_data);
 }
 
@@ -86,8 +86,8 @@ void MyUIInit()
     UICharRefresh(&referee_recv_info->referee_id, UI_State_sta[2]);
     UICharDraw(&UI_State_sta[3], "ss3", UI_Graph_ADD, 8, UI_Color_Pink, 15, 2, 150, 600, "frict:");
     UICharRefresh(&referee_recv_info->referee_id, UI_State_sta[3]);
-    UICharDraw(&UI_State_sta[4], "ss4", UI_Graph_ADD, 8, UI_Color_Pink, 15, 2, 150, 550, "lid:");
-    UICharRefresh(&referee_recv_info->referee_id, UI_State_sta[4]);
+    // UICharDraw(&UI_State_sta[4], "ss4", UI_Graph_ADD, 8, UI_Color_Pink, 15, 2, 150, 550, "lid:");
+    // UICharRefresh(&referee_recv_info->referee_id, UI_State_sta[4]);
 
     // 绘制车辆状态标志，动态
     // 由于初始化时xxx_last_mode默认为0，所以此处对应UI也应该设为0时对应的UI，防止模式不变的情况下无法置位flag，导致UI无法刷新
@@ -99,21 +99,21 @@ void MyUIInit()
     UICharRefresh(&referee_recv_info->referee_id, UI_State_dyn[2]);
     UICharDraw(&UI_State_dyn[3], "sd3", UI_Graph_ADD, 8, UI_Color_Pink, 15, 2, 270, 600, "off");
     UICharRefresh(&referee_recv_info->referee_id, UI_State_dyn[3]);
-    UICharDraw(&UI_State_dyn[4], "sd4", UI_Graph_ADD, 8, UI_Color_Pink, 15, 2, 270, 550, "open ");
-    UICharRefresh(&referee_recv_info->referee_id, UI_State_dyn[4]);
+    // UICharDraw(&UI_State_dyn[4], "sd4", UI_Graph_ADD, 8, UI_Color_Pink, 15, 2, 270, 550, "open ");
+    // UICharRefresh(&referee_recv_info->referee_id, UI_State_dyn[4]);
 
-    // 底盘功率显示，静态
-    UICharDraw(&UI_State_sta[5], "ss5", UI_Graph_ADD, 7, UI_Color_Green, 18, 2, 620, 230, "Power:");
-    UICharRefresh(&referee_recv_info->referee_id, UI_State_sta[5]);
-    // 能量条框
-    UIRectangleDraw(&UI_Energy[0], "ss6", UI_Graph_ADD, 7, UI_Color_Green, 2, 720, 140, 1220, 180);
-    UIGraphRefresh(&referee_recv_info->referee_id, 1, UI_Energy[0]);
+    // // 底盘功率显示，静态
+    // UICharDraw(&UI_State_sta[5], "ss5", UI_Graph_ADD, 7, UI_Color_Green, 18, 2, 620, 230, "Power:");
+    // UICharRefresh(&referee_recv_info->referee_id, UI_State_sta[5]);
+    // // 能量条框
+    // UIRectangleDraw(&UI_Energy[0], "ss6", UI_Graph_ADD, 7, UI_Color_Green, 2, 720, 140, 1220, 180);
+    // UIGraphRefresh(&referee_recv_info->referee_id, 1, UI_Energy[0]);
 
-    // 底盘功率显示,动态
-    UIFloatDraw(&UI_Energy[1], "sd5", UI_Graph_ADD, 8, UI_Color_Green, 18, 2, 2, 750, 230, 24000);
-    // 能量条初始状态
-    UILineDraw(&UI_Energy[2], "sd6", UI_Graph_ADD, 8, UI_Color_Pink, 30, 720, 160, 1020, 160);
-    UIGraphRefresh(&referee_recv_info->referee_id, 2, UI_Energy[1], UI_Energy[2]);
+    // // 底盘功率显示,动态
+    // UIFloatDraw(&UI_Energy[1], "sd5", UI_Graph_ADD, 8, UI_Color_Green, 18, 2, 2, 750, 230, 24000);
+    // // 能量条初始状态
+    // UILineDraw(&UI_Energy[2], "sd6", UI_Graph_ADD, 8, UI_Color_Pink, 30, 720, 160, 1020, 160);
+    // UIGraphRefresh(&referee_recv_info->referee_id, 2, UI_Energy[1], UI_Energy[2]);
 }
 
 // 测试用函数，实现模式自动变化,用于检查该任务和裁判系统是否连接正常
@@ -237,20 +237,20 @@ static void MyUIRefresh(referee_info_t *referee_recv_info, Referee_Interactive_i
         _Interactive_data->Referee_Interactive_Flag.friction_flag = 0;
     }
     // lid
-    if (_Interactive_data->Referee_Interactive_Flag.lid_flag == 1)
-    {
-        UICharDraw(&UI_State_dyn[4], "sd4", UI_Graph_Change, 8, UI_Color_Pink, 15, 2, 270, 550, _Interactive_data->lid_mode == LID_OPEN ? "open " : "close");
-        UICharRefresh(&referee_recv_info->referee_id, UI_State_dyn[4]);
-        _Interactive_data->Referee_Interactive_Flag.lid_flag = 0;
-    }
-    // power
-    if (_Interactive_data->Referee_Interactive_Flag.Power_flag == 1)
-    {
-        UIFloatDraw(&UI_Energy[1], "sd5", UI_Graph_Change, 8, UI_Color_Green, 18, 2, 2, 750, 230, _Interactive_data->Chassis_Power_Data.chassis_power_mx * 1000);
-        UILineDraw(&UI_Energy[2], "sd6", UI_Graph_Change, 8, UI_Color_Pink, 30, 720, 160, (uint32_t)750 + _Interactive_data->Chassis_Power_Data.chassis_power_mx * 30, 160);
-        UIGraphRefresh(&referee_recv_info->referee_id, 2, UI_Energy[1], UI_Energy[2]);
-        _Interactive_data->Referee_Interactive_Flag.Power_flag = 0;
-    }
+    // if (_Interactive_data->Referee_Interactive_Flag.lid_flag == 1)
+    // {
+    //     UICharDraw(&UI_State_dyn[4], "sd4", UI_Graph_Change, 8, UI_Color_Pink, 15, 2, 270, 550, _Interactive_data->lid_mode == LID_OPEN ? "open " : "close");
+    //     UICharRefresh(&referee_recv_info->referee_id, UI_State_dyn[4]);
+    //     _Interactive_data->Referee_Interactive_Flag.lid_flag = 0;
+    // }
+    // // power
+    // if (_Interactive_data->Referee_Interactive_Flag.Power_flag == 1)
+    // {
+    //     UIFloatDraw(&UI_Energy[1], "sd5", UI_Graph_Change, 8, UI_Color_Green, 18, 2, 2, 750, 230, _Interactive_data->Chassis_Power_Data.chassis_power_mx * 1000);
+    //     UILineDraw(&UI_Energy[2], "sd6", UI_Graph_Change, 8, UI_Color_Pink, 30, 720, 160, (uint32_t)750 + _Interactive_data->Chassis_Power_Data.chassis_power_mx * 30, 160);
+    //     UIGraphRefresh(&referee_recv_info->referee_id, 2, UI_Energy[1], UI_Energy[2]);
+    //     _Interactive_data->Referee_Interactive_Flag.Power_flag = 0;
+    // }
 }
 
 /**

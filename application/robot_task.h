@@ -133,6 +133,7 @@ __attribute__((noreturn)) void StartUITASK(void const *argument)
     for (;;)
     {
         // 每给裁判系统发送一包数据会挂起一次,详见UITask函数的refereeSend()
+        
         UITask();
         osDelay(1); // 即使没有任何UI需要刷新,也挂起一次,防止卡在UITask中无法切换
     }
