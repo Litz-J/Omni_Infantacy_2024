@@ -67,6 +67,7 @@ typedef struct
 	friction_mode_e friction_mode;			 // 摩擦轮关闭
 	lid_mode_e lid_mode;					 // 弹舱盖打开
 	Chassis_Power_Data_s Chassis_Power_Data; // 功率控制
+	ui_mode_e ui_mode;						 // UI模式
 
 	// 上一次的模式，用于flag判断
 	chassis_mode_e chassis_last_mode;

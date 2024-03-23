@@ -75,6 +75,13 @@ typedef enum
     APP_ERROR,
 } App_Status_e;
 
+// UI模式设置
+typedef enum
+{
+    UI_KEEP = 0,
+    UI_REFRESH,
+} ui_mode_e;
+
 // 底盘模式设置
 /**
  * @brief 后续考虑修改为云台跟随底盘,而不是让底盘去追云台,云台的惯量比底盘小.
@@ -160,6 +167,9 @@ typedef struct
     int chassis_power_limit;
     // UI部分
     uint8_t robot_real_level;
+    Chassis_Power_Data_s super_cap; //  超级电容
+    friction_mode_e friction_mode;  //  摩擦轮状态
+    ui_mode_e ui_mode;              //  UI状态
     //  ...
 
 } Chassis_Ctrl_Cmd_s;

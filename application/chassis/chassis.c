@@ -267,11 +267,16 @@ void ChassisTask()
 
     // // 获取裁判系统数据   建议将裁判系统与底盘分离，所以此处数据应使用消息中心发送
     // // 我方颜色id小于7是红色,大于7是蓝色,注意这里发送的是对方的颜色, 0:blue , 1:red
-    // chassis_feedback_data.enemy_color = referee_data->GameRobotState.robot_id > 7 ? 1 : 0;
+    chassis_feedback_data.enemy_color = referee_data->GameRobotState.robot_id > 7 ? 2 : 1;
     // // 当前只做了17mm热量的数据获取,后续根据robot_def中的宏切换双枪管和英雄42mm的情况
     // chassis_feedback_data.bullet_speed = referee_data->GameRobotState.shooter_id1_17mm_speed_limit;
     // chassis_feedback_data.rest_heat = referee_data->PowerHeatData.shooter_heat0;
 
+    // UI数据
+    ui_data.chassis_mode = chassis_cmd_recv.chassis_mode;
+    ui_data.friction_mode = chassis_cmd_recv.friction_mode;
+    ui_data.Chassis_Power_Data.chassis_power_mx = chassis_cmd_recv.super_cap.chassis_power_mx;
+    ui_data.ui_mode = chassis_cmd_recv.ui_mode;
     // 推送反馈消息
 #ifdef ONE_BOARD
     PubPushMessage(chassis_pub, (void *)&chassis_feedback_data);
