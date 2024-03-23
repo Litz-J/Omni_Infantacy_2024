@@ -318,8 +318,8 @@ static void MouseKeySet()
     chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * 10000 - rc_data[TEMP].key[KEY_PRESS].s * 10000; // 系数待测
     chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * 10000 - rc_data[TEMP].key[KEY_PRESS].d * 10000;
 
-    gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 10; // 系数待测
-    gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 10;
+    gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 11; // 系数待测
+    gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 11;
 
     // 云台软件限位
     if(gimbal_cmd_send.pitch>=PITCH_MAX_ANGLE)
@@ -367,9 +367,18 @@ static void MouseKeySet()
         shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
         break;
     }
-    if(rc_data[TEMP].mouse.press_l==0 | shoot_fetch_data.shoot_status != SHOOT_STOP)
+    //if(rc_data[TEMP].mouse.press_l==0 | shoot_fetch_data.shoot_status != SHOOT_STOP)
+    if(rc_data[TEMP].mouse.press_l==0&&rc_data[TEMP].mouse.press_r==0)
     {
         shoot_cmd_send.load_mode = LOAD_STOP;
+    }
+    if(rc_data[TEMP].mouse.press_l==1)
+    {
+        shoot_cmd_send.shoot_rate=6;
+    }
+    else if(rc_data[TEMP].mouse.press_r==1)
+    {
+        shoot_cmd_send.shoot_rate=12;
     }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 3)  
     {

@@ -93,17 +93,17 @@ void ShootInit()
         .controller_param_init_config = {
             .angle_PID = {
                 // 如果启用位置环来控制发弹,需要较大的I值保证输出力矩的线性度否则出现接近拨出的力矩大幅下降
-                .Kp = 5, // 10
-                .Ki = 60,
-                .Kd = 0.0,
+                .Kp = 3, // 10
+                .Ki = 50,
+                .Kd = 0.1,
                 .MaxOut = 50000,
                 .Improve = PID_Integral_Limit | PID_DerivativeFilter,
                 .IntegralLimit = 20000,
-                .Derivative_LPF_RC =0,
+                .Derivative_LPF_RC =0.0075,
                 .DeadBand=750,
             },
             .speed_PID = {
-                .Kp = 8, // 10
+                .Kp = 5, // 10
                 .Ki = 0.800000012, // 1
                 .Kd = 0.0250000004,
                 .Improve = PID_Integral_Limit | PID_DerivativeFilter,
@@ -112,7 +112,7 @@ void ShootInit()
                 .Derivative_LPF_RC = 0.04,
             },
             .current_PID = {
-                .Kp = 3, // 0.7
+                .Kp = 2, // 0.7
                 .Ki = 0.3, // 0.1
                 .Kd = 0.00079999998,
                 .Improve = PID_Integral_Limit | PID_DerivativeFilter,
@@ -137,9 +137,9 @@ void ShootInit()
 
 float speedref=0;
 float torque2006 ;
-float fric_v=48000;
-//47500,28.5m/s
-//46500,27.8m/s
+float fric_v=45500;
+//48000,31m/s
+//44500,26.7m/s
 
 /* 机器人发射机构控制核心任务 */
 void ShootTask()
@@ -220,7 +220,7 @@ void ShootTask()
             DJIMotorOuterLoop(loader, ANGLE_LOOP);                                                  // 切换到速度环
             DJIMotorSetRef(loader, loader->measure.total_angle + 3 * ONE_BULLET_DELTA_ANGLE);       // 增加3发
             hibernate_time = DWT_GetTimeline_ms();                                                  // 记录触发指令的时间
-            dead_time = 300;                                                                        // 完成3发弹丸发射的时间
+            dead_time = 500;                                                                        // 完成3发弹丸发射的时间
         }
         break;
     // 连发模式,对速度闭环,射频后续修改为可变,目前固定为1Hz

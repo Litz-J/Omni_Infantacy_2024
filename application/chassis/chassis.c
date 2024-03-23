@@ -196,7 +196,7 @@ static void EstimateSpeed()
     // chassis_feedback_data.vx vy wz =
     //  ...
 }
-int16_t rotationspeed=5000;
+float rotationspeed=4000;
 /* 机器人底盘控制核心任务 */
 void ChassisTask()
 {

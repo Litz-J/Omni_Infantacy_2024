@@ -24,24 +24,26 @@ void GimbalInit()
             .can_handle = &hcan1,
             .tx_id = 1,
         },
-        //无头：angle:8,0,0.32,max400,speed:40,200,0,max25000
+        //无头：angle:8,0,0.32,max400,speed:40,200,0,max15000
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp = 28.5, //26.7
-                .Ki = 0,
-                .Kd = 2.2997,  //2.2
+                .Kp = 65, //28.5
+                .Ki = 0.4000006,
+                .Kd = 4.275,  //2.2997
                 .DeadBand = 0.025,
-                .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-                .IntegralLimit = 100,
+                .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
+                .IntegralLimit = 5,
                 .MaxOut = 400,
+                .Derivative_LPF_RC= 0.00724999979,
             },
             .speed_PID = {
-                .Kp = 80,  // 80
-                .Ki = 420, // 420
-                .Kd = 0,
-                .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-                .IntegralLimit = 9000,
+                .Kp = 140,  // 80
+                .Ki = 50, // 420
+                .Kd = 1,
+                .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
+                .IntegralLimit = 7000,
                 .MaxOut = 25000, //25000
+                .Derivative_LPF_RC= 0.0900000036,
             },
             .other_angle_feedback_ptr = &gimba_IMU_data->YawTotalAngle,
             // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
@@ -64,13 +66,13 @@ void GimbalInit()
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp = 40, // 10
+                .Kp = 30, // 10
                 .Ki = 0.05,
-                .Kd = 1.5,
+                .Kd = 1.4,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
                 .IntegralLimit = 5,
                 .MaxOut = 100,
-                .Derivative_LPF_RC= 0.00600000005,
+                .Derivative_LPF_RC= 0.00900000005,
             },
             .speed_PID = {
                 .Kp = 90,  // 50
