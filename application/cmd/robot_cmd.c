@@ -11,6 +11,7 @@
 #include "bmi088.h"
 #include "controller.h"
 #include "rm_referee.h"
+#include "user_lib.h"
 // bsp
 #include "bsp_dwt.h"
 #include "bsp_log.h"
@@ -268,9 +269,14 @@ static void RemoteControlSet()
     }
 
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
-    chassis_cmd_send.vx = 20.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
-    chassis_cmd_send.vy = 20.0f * (float)rc_data[TEMP].rc.rocker_r1; // 竖直方向
+    chassis_cmd_send.vx = 15.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
+    chassis_cmd_send.vy = 15.0f * (float)rc_data[TEMP].rc.rocker_r1; // 竖直方向
 
+    chassis_cmd_send.wz = 4000.0f;
+    //chassis_cmd_send.wz = 4500.0f+ 600.0f * float_constrain(sin(DWT_GetTimeline_s()*3.14*3.2),-0.25,0.45);
+
+    //\sin\left(x\cdot3.14\cdot4.756\right)\cdot\sin\left(x\cdot3.14\cdot3.07\right)
+    //chassis_cmd_send.wz = 3500.0f + 500.0f * float_constrain(sin(DWT_GetTimeline_s()*3.14*0.85)*sin(DWT_GetTimeline_s()*3.14*0.375),-0.45,0.675);
     // if(switch_is_down(rc_data[TEMP].rc.switch_left)&&shoot_cmd_send.friction_mode == FRICTION_ON)
     //     {
     //             shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
@@ -309,17 +315,19 @@ static void RemoteControlSet()
     shoot_cmd_send.shoot_rate = 8;
 }
 
+float chassis_speed_mouse=7500;//十级10000
+
 /**
  * @brief 输入为键鼠时模式和控制量设置
  *
  */
 static void MouseKeySet()
 {
-    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * 10000 - rc_data[TEMP].key[KEY_PRESS].s * 10000; // 系数待测
-    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * 10000 - rc_data[TEMP].key[KEY_PRESS].d * 10000;
+    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w *  chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].s * chassis_speed_mouse; // 系数待测
+    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].d * chassis_speed_mouse;
 
-    gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 11; // 系数待测
-    gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 11;
+    gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 11.0f; // 系数待测
+    gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 11.0f;
 
     // 云台软件限位
     if(gimbal_cmd_send.pitch>=PITCH_MAX_ANGLE)
@@ -380,7 +388,7 @@ static void MouseKeySet()
     {
         shoot_cmd_send.shoot_rate=12;
     }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 3)  
+    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 3)  //Q设置底盘模式
     {
     case 0:
         chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
@@ -392,6 +400,7 @@ static void MouseKeySet()
         chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
         break;
     }
+    
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_R] % 2) // R键开关弹舱
     {
     case 0:
@@ -458,15 +467,24 @@ static void MouseKeySet()
     default:
         break;
     }
-    switch (rc_data[TEMP].key[KEY_PRESS].shift) // 待添加 按shift允许超功率 消耗缓冲能量
+    switch (rc_data[TEMP].key[KEY_PRESS].shift) // 按shift强制开启小陀螺
     {
     case 1:
-
+        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
         break;
-
     default:
 
         break;
+    }
+    switch (rc_data[TEMP].key[KEY_PRESS].v) // 按下V小陀螺加速
+    {
+        case 1:
+            chassis_cmd_send.wz = 6000.0f;
+            break;
+        default:
+            chassis_cmd_send.wz = 3500.0f + 500.0f * float_constrain(sin(DWT_GetTimeline_s()*3.14*0.85)*sin(DWT_GetTimeline_s()*3.14*0.375),-0.45,0.675);
+            break;
+        
     }
 }
 

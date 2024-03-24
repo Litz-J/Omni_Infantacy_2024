@@ -92,7 +92,7 @@ attitude_t *INS_Init(void)
     IMU_Param.scale[Y] = 1;
     IMU_Param.scale[Z] = 1;
     IMU_Param.Yaw = 0;
-    IMU_Param.Pitch = -37.1f;
+    IMU_Param.Pitch = -30.1f;
     IMU_Param.Roll = 0;
     IMU_Param.flag = 1;
 
