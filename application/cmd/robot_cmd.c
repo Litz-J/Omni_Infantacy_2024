@@ -378,14 +378,18 @@ static void MouseKeySet()
     if(rc_data[TEMP].mouse.press_l==0 && rc_data[TEMP].mouse.press_r==0)
     {
         shoot_cmd_send.load_mode = LOAD_STOP;
+        chassis_cmd_send.load_mode = LOAD_STOP;
+        chassis_cmd_send.shoot_mode = SHOOT_OFF;
     }
     if(rc_data[TEMP].mouse.press_l==1)
     {
         shoot_cmd_send.shoot_rate=6;
+        chassis_cmd_send.shoot_mode = SHOOT_ON;
     }
     else if(rc_data[TEMP].mouse.press_r==1)
     {
         shoot_cmd_send.shoot_rate=12;
+        chassis_cmd_send.shoot_mode = SHOOT_ON;
     }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 3)  //Q设置底盘模式
     {

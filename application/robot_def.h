@@ -171,6 +171,7 @@ typedef struct
     lid_mode_e lid_mode;
     friction_mode_e friction_mode;
     loader_mode_e load_mode;
+    shoot_mode_e shoot_mode;//发射状态
     float pitch_angle;
     Chassis_Power_Data_s super_cap; //  超级电容
     ui_mode_e ui_mode;              //  UI状态
