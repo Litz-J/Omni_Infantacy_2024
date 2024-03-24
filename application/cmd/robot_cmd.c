@@ -351,29 +351,28 @@ static void MouseKeySet()
         shoot_cmd_send.bullet_speed = 30;
         break;
     }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 4) // Q键设置底盘模式
-    {
-    case 0:
-        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
-        break;
-    case 1:
-        chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
-        break;
-    default:
-        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
-        break;
-    }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 3) // E键设置发射模式
     {
     case 0:
+    {
         shoot_cmd_send.load_mode = LOAD_STOP;
+        chassis_cmd_send.load_mode = LOAD_STOP;
         break;
+    }
     case 1:
+    {
         shoot_cmd_send.load_mode = LOAD_1_BULLET;
+        chassis_cmd_send.load_mode = LOAD_1_BULLET;
         break;
+    }
+        
     default:
+    {
         shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
+        chassis_cmd_send.load_mode = LOAD_BURSTFIRE;
         break;
+    }
+        
     }
     //if(rc_data[TEMP].mouse.press_l==0 | shoot_fetch_data.shoot_status != SHOOT_STOP)
     if(rc_data[TEMP].mouse.press_l==0 && rc_data[TEMP].mouse.press_r==0)
@@ -404,20 +403,36 @@ static void MouseKeySet()
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_R] % 2) // R键开关弹舱
     {
     case 0:
+    {
         shoot_cmd_send.lid_mode = LID_OPEN;
+        chassis_cmd_send.lid_mode = LID_OPEN;
         break;
+    }
+        
     default:
+    {
         shoot_cmd_send.lid_mode = LID_CLOSE;
+        chassis_cmd_send.lid_mode = LID_CLOSE;
         break;
+    }
+        
     }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_F] % 2) // F键开关摩擦轮
     {
     case 0:
+    {
         shoot_cmd_send.friction_mode = FRICTION_OFF;
+        chassis_cmd_send.friction_mode = FRICTION_OFF;
         break;
+    }
+        
     default:
+    {
         shoot_cmd_send.friction_mode = FRICTION_ON;
+        chassis_cmd_send.friction_mode = FRICTION_ON;
         break;
+    }
+        
     }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_C] % 10) // C键设置底盘功率
     {//血量优先

@@ -309,6 +309,7 @@ void ChassisTask()
     ui_data.chassis_mode = chassis_cmd_recv.chassis_mode;
     ui_data.friction_mode = chassis_cmd_recv.friction_mode;
     ui_data.Chassis_Power_Data.chassis_power_mx = chassis_cmd_recv.super_cap.chassis_power_mx;
+    ui_data.shoot_mode = chassis_cmd_recv.load_mode;
     ui_data.ui_mode = chassis_cmd_recv.ui_mode;
     // 推送反馈消息
 #ifdef ONE_BOARD
