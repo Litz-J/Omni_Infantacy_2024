@@ -167,8 +167,12 @@ typedef struct
     int chassis_power_limit;
     // UI部分
     uint8_t robot_real_level;
+    gimbal_mode_e gimbal_mode;
+    lid_mode_e lid_mode;
+    friction_mode_e friction_mode;
+    loader_mode_e load_mode;
+    float pitch_angle;
     Chassis_Power_Data_s super_cap; //  超级电容
-    friction_mode_e friction_mode;  //  摩擦轮状态
     ui_mode_e ui_mode;              //  UI状态
     //  ...
 
