@@ -17,6 +17,7 @@
 #include "super_cap.h"
 #include "message_center.h"
 #include "referee_task.h"
+#include "user_lib.h"
 
 #include "general_def.h"
 #include "bsp_dwt.h"
@@ -42,7 +43,7 @@ static Subscriber_t *chassis_sub;                   // 用于订阅底盘的控�
 static Chassis_Ctrl_Cmd_s chassis_cmd_recv;         // 底盘接收到的控制命令
 static Chassis_Upload_Data_s chassis_feedback_data; // 底盘回传的反馈数据
 
-static referee_info_t* referee_data; // 用于获取裁判系统的数据
+static referee_info_t *referee_data;       // 用于获取裁判系统的数据
 static Referee_Interactive_info_t ui_data; // UI数据，将底盘中的数据传入此结构体的对应变量中，UI会自动检测是否变化，对应显示UI
 
 static SuperCapInstance *cap;                                       // 超级电容
@@ -63,15 +64,15 @@ void ChassisInit()
         .controller_param_init_config = {
             .speed_PID = {
                 .Kp = 7.5, // 4.5
-                .Ki = 0.4,  // 0
-                .Kd = 0.0,  // 0
+                .Ki = 0.4, // 0
+                .Kd = 0.0, // 0
                 .IntegralLimit = 8000,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .MaxOut = 15000,
             },
             .current_PID = {
-                .Kp = 0.8, // 0.4
-                .Ki = 0.08,   // 0
+                .Kp = 0.8,  // 0.4
+                .Ki = 0.08, // 0
                 .Kd = 0,
                 .IntegralLimit = 5000,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
@@ -103,7 +104,7 @@ void ChassisInit()
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_rb = DJIMotorInit(&chassis_motor_config);
 
-    referee_data = UITaskInit(&huart6,&ui_data); // 裁判系统初始化,会同时初始化UI
+    referee_data = UITaskInit(&huart6, &ui_data); // 裁判系统初始化,会同时初始化UI
 
     SuperCap_Init_Config_s cap_conf = {
         .can_config = {
@@ -135,7 +136,6 @@ void ChassisInit()
 #endif // ONE_BOARD
 }
 
-
 #define LF_CENTER ((HALF_TRACK_WIDTH + CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE - CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
 #define RF_CENTER ((HALF_TRACK_WIDTH - CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE - CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
 #define LB_CENTER ((HALF_TRACK_WIDTH + CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE + CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
@@ -146,7 +146,7 @@ void ChassisInit()
  */
 static void MecanumCalculate()
 {
-    vt_lf = -chassis_vx - chassis_vy - chassis_cmd_recv.wz * LF_CENTER ;
+    vt_lf = -chassis_vx - chassis_vy - chassis_cmd_recv.wz * LF_CENTER;
     vt_rf = -chassis_vx + chassis_vy - chassis_cmd_recv.wz * RF_CENTER;
     vt_lb = chassis_vx - chassis_vy - chassis_cmd_recv.wz * LB_CENTER;
     vt_rb = chassis_vx + chassis_vy - chassis_cmd_recv.wz * RB_CENTER;
@@ -154,18 +154,18 @@ static void MecanumCalculate()
 
 #define COSINE45 0.7071068f
 #define SINE45 0.7071068f
-#define SECANT45 1/COSINE45
-#define COSECANT45 1/SINE45
+#define SECANT45 1 / COSINE45
+#define COSECANT45 1 / SINE45
 /**
  * @brief 全向轮：计算每个轮毂电机的输出,正运动学解算
  *        用宏进行预替换减小开销,运动解算具体过程参考教程
  */
 static void OmnidirectionalCalculate()
 {
-    vt_lf = -chassis_vx*COSECANT45 - chassis_vy*SECANT45 - chassis_cmd_recv.wz * LF_CENTER;
-    vt_rf = -chassis_vx*COSECANT45 + chassis_vy*SECANT45 - chassis_cmd_recv.wz * RF_CENTER;
-    vt_lb = chassis_vx*COSECANT45 - chassis_vy*SECANT45 - chassis_cmd_recv.wz * LB_CENTER;
-    vt_rb = chassis_vx*COSECANT45 + chassis_vy*SECANT45 - chassis_cmd_recv.wz * RB_CENTER;
+    vt_lf = -chassis_vx * COSECANT45 - chassis_vy * SECANT45 - chassis_cmd_recv.wz * LF_CENTER;
+    vt_rf = -chassis_vx * COSECANT45 + chassis_vy * SECANT45 - chassis_cmd_recv.wz * RF_CENTER;
+    vt_lb = chassis_vx * COSECANT45 - chassis_vy * SECANT45 - chassis_cmd_recv.wz * LB_CENTER;
+    vt_rb = chassis_vx * COSECANT45 + chassis_vy * SECANT45 - chassis_cmd_recv.wz * RB_CENTER;
 }
 
 /**
@@ -180,7 +180,7 @@ static void ChassisSetRef()
     DJIMotorSetRef(motor_rb, vt_rb);
 }
 
-//参考广工功率控制
+// 参考广工功率控制
 /*
 void ChassisBase<T...>::powerLimit()
 {
@@ -210,10 +210,12 @@ void ChassisBase<T...>::powerLimit()
 }
 */
 
+#define WHEEL_TORQUE_CONVERT(current) current/16384.0f*20*0.3*REDUCTION_RATIO_WHEEL;
+
 float power_offset = 0.0;
 
-float effort_coeff_=1.0;
-float velocity_coeff_=1.0;
+float effort_coeff_ = 1.0;
+float velocity_coeff_ = 1.0;
 
 float chassis_power_limit;
 float chassis_power;
@@ -225,12 +227,19 @@ float chassis_power_buffer;
 static void LimitChassisOutput()
 {
     chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
-    
+
     chassis_power = referee_data->PowerHeatData.chassis_power;
     chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
 
+    // 以下是参考广工开源的
+    // Three coefficients of a quadratic equation in one variable
+    double a = 0., b = 0., c = 0.;
 
-
+    // 把四个电机的值带入
+    a = float_Square(WHEEL_TORQUE_CONVERT(motor_lf->controller)) + float_Square(motor_lb->measure.real_current) + float_Square(motor_rf->measure.real_current) + motor_rb->measure.real_current;
+    b = fabsf(motor_lf->real_current*motor_lf->measure.speed_aps)+fabsf(motor_lb->real_current*motor_lb->measure.speed_aps)
+        +fabsf(motor_rf->real_current*motor_rf->measure.speed_aps)+fabsf(motor_rb->real_current*motor_rb->measure.speed_aps);
+    //c=  
 }
 
 /**
@@ -244,7 +253,7 @@ static void EstimateSpeed()
     // chassis_feedback_data.vx vy wz =
     //  ...
 }
-float rotationspeed=4000;
+float rotationspeed = 4000;
 /* 机器人底盘控制核心任务 */
 void ChassisTask()
 {
@@ -286,13 +295,13 @@ void ChassisTask()
         chassis_cmd_recv.wz = -0.8f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
     case CHASSIS_ROTATE: // 自旋,同时保持全向机动;当前wz维持定值,后续增加不规则的变速策略
-        //chassis_cmd_recv.wz = rotationspeed;
-        //在robot_cmd里更改自旋速度，不在这里设置旋转
+        // chassis_cmd_recv.wz = rotationspeed;
+        // 在robot_cmd里更改自旋速度，不在这里设置旋转
         break;
     case CHASSIS_NO_DIRECTION:
         chassis_cmd_recv.wz = 0;
-        cos_theta=1;
-        sin_theta=0;
+        cos_theta = 1;
+        sin_theta = 0;
         break;
     default:
         break;
@@ -300,18 +309,18 @@ void ChassisTask()
 
     // 根据云台和底盘的角度offset将控制量映射到底盘坐标系上
     // 底盘逆时针旋转为角度正方向;云台命令的方向以云台指向的方向为x,采用右手系(x指向正北时y在正东)
-    
+
     chassis_vx = chassis_cmd_recv.vx * cos_theta - chassis_cmd_recv.vy * sin_theta;
     chassis_vy = chassis_cmd_recv.vx * sin_theta + chassis_cmd_recv.vy * cos_theta;
 
     // 根据控制模式进行正运动学解算,计算底盘输出
-    //MecanumCalculate();
+    // MecanumCalculate();
     OmnidirectionalCalculate();
 
-    //设定底盘闭环参考值
+    // 设定底盘闭环参考值
     ChassisSetRef();
 
-    //底盘功率限制
+    // 底盘功率限制
     LimitChassisOutput();
 
     // 根据电机的反馈速度和IMU(如果有)计算真实速度

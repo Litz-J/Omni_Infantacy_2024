@@ -289,6 +289,8 @@ void DJIMotorControl()
         if (motor_setting->feedback_reverse_flag == FEEDBACK_DIRECTION_REVERSE)
             pid_ref *= -1;
 
+        motor_controller -> pid_output = pid_ref;
+
         // 获取最终输出
         set = (int16_t)pid_ref;
 

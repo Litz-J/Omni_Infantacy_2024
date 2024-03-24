@@ -57,6 +57,11 @@ float Sqrt(float x)
     return y;
 }
 
+float float_Square(float x)
+{
+    return x*x;
+}
+
 // 绝对值限制
 float abs_limit(float num, float Limit)
 {

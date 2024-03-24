@@ -94,6 +94,8 @@ void *zmalloc(size_t size);
 
 // ���ٿ���
 float Sqrt(float x);
+
+float float_Square(float x);
 // ��������
 float abs_limit(float num, float Limit);
 // �жϷ���λ
