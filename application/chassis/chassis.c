@@ -168,6 +168,38 @@ static void OmnidirectionalCalculate()
     vt_rb = chassis_vx*COSECANT45 + chassis_vy*SECANT45 - chassis_cmd_recv.wz * RB_CENTER;
 }
 
+/*
+void ChassisBase<T...>::powerLimit()
+{
+  double power_limit = cmd_rt_buffer_.readFromRT()->cmd_chassis_.power_limit;
+  // Three coefficients of a quadratic equation in one variable
+  double a = 0., b = 0., c = 0.;
+  for (const auto& joint : joint_handles_)
+  {
+    double cmd_effort = joint.getCommand();
+    double real_vel = joint.getVelocity();
+    if (joint.getName().find("wheel") != std::string::npos)  // The pivot joint of swerve drive doesn't need power limit
+    {
+      a += square(cmd_effort);
+      b += std::abs(cmd_effort * real_vel);
+      c += square(real_vel);
+    }
+  }
+  a *= effort_coeff_;
+  c = c * velocity_coeff_ - power_offset_ - power_limit;
+  // Root formula for quadratic equation in one variable
+  double zoom_coeff = (square(b) - 4 * a * c) > 0 ? ((-b + sqrt(square(b) - 4 * a * c)) / (2 * a)) : 0.;
+  for (auto joint : joint_handles_)
+    if (joint.getName().find("wheel") != std::string::npos)
+    {
+      joint.setCommand(zoom_coeff > 1 ? joint.getCommand() : joint.getCommand() * zoom_coeff);
+    }
+}
+*/
+
+float effort_coeff_=1.0;
+float velocity_coeff_;
+
 /**
  * @brief 根据裁判系统和电容剩余容量对输出进行限制并设置电机参考值
  *
@@ -175,8 +207,8 @@ static void OmnidirectionalCalculate()
 static void LimitChassisOutput()
 {
     // 功率限制待添加
-    // referee_data->PowerHeatData.chassis_power;
-    // referee_data->PowerHeatData.chassis_power_buffer;
+    float chassis_power = referee_data->PowerHeatData.chassis_power;
+    float chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
 
     // 完成功率限制后进行电机参考输入设定
     DJIMotorSetRef(motor_lf, vt_lf);
@@ -235,11 +267,11 @@ void ChassisTask()
         chassis_cmd_recv.wz = 0;
         break;
     case CHASSIS_FOLLOW_GIMBAL_YAW: // 跟随云台,不单独设置pid,以误差角度平方为速度输出
-        chassis_cmd_recv.wz = -0.7f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        chassis_cmd_recv.wz = -0.8f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
     case CHASSIS_ROTATE: // 自旋,同时保持全向机动;当前wz维持定值,后续增加不规则的变速策略
         //chassis_cmd_recv.wz = rotationspeed;
-        //在robot_cmd里更改自旋速度
+        //在robot_cmd里更改自旋速度，不在这里设置旋转
         break;
     case CHASSIS_NO_DIRECTION:
         chassis_cmd_recv.wz = 0;
