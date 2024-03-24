@@ -168,6 +168,19 @@ static void OmnidirectionalCalculate()
     vt_rb = chassis_vx*COSECANT45 + chassis_vy*SECANT45 - chassis_cmd_recv.wz * RB_CENTER;
 }
 
+/**
+ * @brief 设定底盘电机速度参考值
+ *
+ */
+static void ChassisSetRef()
+{
+    DJIMotorSetRef(motor_lf, vt_lf);
+    DJIMotorSetRef(motor_rf, vt_rf);
+    DJIMotorSetRef(motor_lb, vt_lb);
+    DJIMotorSetRef(motor_rb, vt_rb);
+}
+
+//参考广工功率控制
 /*
 void ChassisBase<T...>::powerLimit()
 {
@@ -197,24 +210,27 @@ void ChassisBase<T...>::powerLimit()
 }
 */
 
-float effort_coeff_=1.0;
-float velocity_coeff_;
+float power_offset = 0.0;
 
+float effort_coeff_=1.0;
+float velocity_coeff_=1.0;
+
+float chassis_power_limit;
+float chassis_power;
+float chassis_power_buffer;
 /**
  * @brief 根据裁判系统和电容剩余容量对输出进行限制并设置电机参考值
  *
  */
 static void LimitChassisOutput()
 {
-    // 功率限制待添加
-    float chassis_power = referee_data->PowerHeatData.chassis_power;
-    float chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
+    chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
+    
+    chassis_power = referee_data->PowerHeatData.chassis_power;
+    chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
 
-    // 完成功率限制后进行电机参考输入设定
-    DJIMotorSetRef(motor_lf, vt_lf);
-    DJIMotorSetRef(motor_rf, vt_rf);
-    DJIMotorSetRef(motor_lb, vt_lb);
-    DJIMotorSetRef(motor_rb, vt_rb);
+
+
 }
 
 /**
@@ -292,7 +308,10 @@ void ChassisTask()
     //MecanumCalculate();
     OmnidirectionalCalculate();
 
-    // 根据裁判系统的反馈数据和电容数据对输出限幅并设定闭环参考值
+    //设定底盘闭环参考值
+    ChassisSetRef();
+
+    //底盘功率限制
     LimitChassisOutput();
 
     // 根据电机的反馈速度和IMU(如果有)计算真实速度
