@@ -55,6 +55,7 @@ static DJIMotorInstance *motor_lf, *motor_rf, *motor_lb, *motor_rb; // left righ
 /* 私有函数计算的中介变量,设为静态避免参数传递的开销 */
 static float chassis_vx, chassis_vy;     // 将云台系的速度投影到底盘
 static float vt_lf, vt_rf, vt_lb, vt_rb; // 底盘速度解算后的临时输出,待进行限幅
+static float output_zoom_coeff=1.0f;
 
 void ChassisInit()
 {
@@ -63,12 +64,12 @@ void ChassisInit()
         .can_init_config.can_handle = &hcan1,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp = 7.5, // 4.5
-                .Ki = 0.4, // 0
-                .Kd = 0.0, // 0
-                .IntegralLimit = 8000,
+                .Kp = 0.9, // 4.5
+                .Ki = 0.075, // 0
+                .Kd = 0.0002, // 0
+                .IntegralLimit = 1200,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-                .MaxOut = 15000,
+                .MaxOut = 10000,
             },
             .current_PID = {
                 .Kp = 0.8,  // 0.4
@@ -83,7 +84,8 @@ void ChassisInit()
             .angle_feedback_source = MOTOR_FEED,
             .speed_feedback_source = MOTOR_FEED,
             .outer_loop_type = SPEED_LOOP,
-            .close_loop_type = SPEED_LOOP | CURRENT_LOOP,
+            //.close_loop_type = SPEED_LOOP | CURRENT_LOOP,
+            .close_loop_type = SPEED_LOOP ,
         },
         .motor_type = M3508,
     };
@@ -210,16 +212,18 @@ void ChassisBase<T...>::powerLimit()
 }
 */
 
-#define WHEEL_TORQUE_CONVERT(current) current/16384.0f*20*0.3*REDUCTION_RATIO_WHEEL;
+#define WHEEL_TORQUE_CONVERT(current) current / 16384.0f * 20 * 0.3 * REDUCTION_RATIO_WHEEL
 
-float power_offset = 0.0;
+float effort_coeff_ = 0.000005;   // 电机力矩项系数
+float velocity_coeff_ = 0.000825000006; // 电机速度项系数
 
-float effort_coeff_ = 1.0;
-float velocity_coeff_ = 1.0;
+float chassis_power_offset = -10.5;
 
 float chassis_power_limit;
 float chassis_power;
 float chassis_power_buffer;
+
+double a = 0., b = 0., c = 0.;
 /**
  * @brief 根据裁判系统和电容剩余容量对输出进行限制并设置电机参考值
  *
@@ -233,13 +237,59 @@ static void LimitChassisOutput()
 
     // 以下是参考广工开源的
     // Three coefficients of a quadratic equation in one variable
-    double a = 0., b = 0., c = 0.;
+    
 
     // 把四个电机的值带入
-    a = float_Square(WHEEL_TORQUE_CONVERT(motor_lf->controller)) + float_Square(motor_lb->measure.real_current) + float_Square(motor_rf->measure.real_current) + motor_rb->measure.real_current;
-    b = fabsf(motor_lf->real_current*motor_lf->measure.speed_aps)+fabsf(motor_lb->real_current*motor_lb->measure.speed_aps)
-        +fabsf(motor_rf->real_current*motor_rf->measure.speed_aps)+fabsf(motor_rb->real_current*motor_rb->measure.speed_aps);
-    //c=  
+    a = float_Square(motor_lf->motor_controller.pid_output)
+    + float_Square(motor_lb->motor_controller.pid_output) 
+    + float_Square(motor_rf->motor_controller.pid_output)
+    + float_Square(motor_rb->motor_controller.pid_output);
+
+    // b = fabsf(WHEEL_TORQUE_CONVERT(motor_lf->motor_controller.pid_output) * motor_lf->measure.speed_aps) 
+    // + fabsf(WHEEL_TORQUE_CONVERT(motor_lb->motor_controller.pid_output) * motor_lb->measure.speed_aps) 
+    // + fabsf(WHEEL_TORQUE_CONVERT(motor_rf->motor_controller.pid_output) * motor_rf->measure.speed_aps) 
+    // + fabsf(WHEEL_TORQUE_CONVERT(motor_rb->motor_controller.pid_output) * motor_rb->measure.speed_aps);
+
+    b = fabsf(motor_lf->motor_controller.pid_output * motor_lf->measure.speed_aps) 
+    + fabsf(motor_lb->motor_controller.pid_output * motor_lb->measure.speed_aps) 
+    + fabsf(motor_rf->motor_controller.pid_output * motor_rf->measure.speed_aps) 
+    + fabsf(motor_rb->motor_controller.pid_output * motor_rb->measure.speed_aps);
+
+    c = float_Square(motor_lf->measure.speed_aps) 
+    + float_Square(motor_lb->measure.speed_aps) 
+    + float_Square(motor_rf->measure.speed_aps) 
+    + float_Square(motor_rb->measure.speed_aps);
+
+    
+    a *= effort_coeff_;
+    c = c * velocity_coeff_;
+    c = c - chassis_power_offset - chassis_power_limit;
+
+    //求根公式解方程
+    double delta = float_Square(b) - 4 * a * c;
+    if(delta < 0)
+    {
+        output_zoom_coeff=0;
+    }
+    else
+    {
+        output_zoom_coeff = (-b + sqrt(delta)) / (2 * a);
+    }
+
+    if(isnan(output_zoom_coeff))
+    {
+        output_zoom_coeff=0;
+    }
+
+    if( output_zoom_coeff < 0 | output_zoom_coeff>1)
+    {
+        output_zoom_coeff=1;
+    }
+
+    DJIMotorSetZoomCoeff(motor_lf,output_zoom_coeff);
+    DJIMotorSetZoomCoeff(motor_lb,output_zoom_coeff);
+    DJIMotorSetZoomCoeff(motor_rf,output_zoom_coeff);
+    DJIMotorSetZoomCoeff(motor_rb,output_zoom_coeff);
 }
 
 /**

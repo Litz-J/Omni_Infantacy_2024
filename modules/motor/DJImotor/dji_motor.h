@@ -127,4 +127,13 @@ void DJIMotorEnable(DJIMotorInstance *motor);
  */
 void DJIMotorOuterLoop(DJIMotorInstance *motor, Closeloop_Type_e outer_loop);
 
+/**
+ * @brief 设置DJI电机输出放大系数
+ *        
+ *
+ * @param motor 要设置的电机
+ * @param zoom_coeff 设定参考值
+ */
+void DJIMotorSetZoomCoeff(DJIMotorInstance *motor, float zoom_coeff);
+
 #endif // !DJI_MOTOR_H

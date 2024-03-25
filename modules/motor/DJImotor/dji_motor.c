@@ -2,6 +2,7 @@
 #include "general_def.h"
 #include "bsp_dwt.h"
 #include "bsp_log.h"
+#include "user_lib.h"
 
 static uint8_t idx = 0; // register idx,是该文件的全局电机索引,在注册时使用
 /* DJI电机的实例,此处仅保存指针,内存的分配将通过电机实例初始化时通过malloc()进行 */
@@ -173,6 +174,8 @@ DJIMotorInstance *DJIMotorInit(Motor_Init_Config_s *config)
     instance->motor_controller.other_speed_feedback_ptr = config->controller_param_init_config.other_speed_feedback_ptr;
     instance->motor_controller.current_feedforward_ptr = config->controller_param_init_config.current_feedforward_ptr;
     instance->motor_controller.speed_feedforward_ptr = config->controller_param_init_config.speed_feedforward_ptr;
+    instance->motor_controller.output_zoom_coeff=1.0f;
+    instance->motor_controller.ref_zoom_coeff=1.0f;
     // 后续增加电机前馈控制器(速度和电流)
 
     // 电机分组,因为至多4个电机可以共用一帧CAN控制报文
@@ -229,6 +232,12 @@ void DJIMotorSetRef(DJIMotorInstance *motor, float ref)
     motor->motor_controller.pid_ref = ref;
 }
 
+void DJIMotorSetZoomCoeff(DJIMotorInstance *motor, float zoom_coeff)
+{
+    //motor->motor_controller.output_zoom_coeff = zoom_coeff;
+    motor->motor_controller.ref_zoom_coeff = zoom_coeff;
+}
+
 // 为所有电机实例计算三环PID,发送控制报文
 void DJIMotorControl()
 {
@@ -249,6 +258,9 @@ void DJIMotorControl()
         motor_controller = &motor->motor_controller;
         measure = &motor->measure;
         pid_ref = motor_controller->pid_ref; // 保存设定值,防止motor_controller->pid_ref在计算过程中被修改
+        
+        pid_ref*=motor_controller->ref_zoom_coeff;
+
         if (motor_setting->motor_reverse_flag == MOTOR_DIRECTION_REVERSE)
             pid_ref *= -1; // 设置反转
 
@@ -290,6 +302,9 @@ void DJIMotorControl()
             pid_ref *= -1;
 
         motor_controller -> pid_output = pid_ref;
+
+        //缩放限制功率
+        pid_ref *= motor_controller->output_zoom_coeff;
 
         // 获取最终输出
         set = (int16_t)pid_ref;

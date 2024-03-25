@@ -269,8 +269,8 @@ static void RemoteControlSet()
     }
 
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
-    chassis_cmd_send.vx = 15.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
-    chassis_cmd_send.vy = 15.0f * (float)rc_data[TEMP].rc.rocker_r1; // 竖直方向
+    chassis_cmd_send.vx = 25.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
+    chassis_cmd_send.vy = 25.0f * (float)rc_data[TEMP].rc.rocker_r1; // 竖直方向
 
     chassis_cmd_send.wz = 4000.0f;
     //chassis_cmd_send.wz = 4500.0f+ 600.0f * float_constrain(sin(DWT_GetTimeline_s()*3.14*3.2),-0.25,0.45);
@@ -315,7 +315,7 @@ static void RemoteControlSet()
     shoot_cmd_send.shoot_rate = 8;
 }
 
-float chassis_speed_mouse=7500;//十级10000
+float chassis_speed_mouse=10000;//十级10000
 
 /**
  * @brief 输入为键鼠时模式和控制量设置
