@@ -286,10 +286,10 @@ static void LimitChassisOutput()
         output_zoom_coeff=1;
     }
 
-    DJIMotorSetZoomCoeff(motor_lf,output_zoom_coeff);
-    DJIMotorSetZoomCoeff(motor_lb,output_zoom_coeff);
-    DJIMotorSetZoomCoeff(motor_rf,output_zoom_coeff);
-    DJIMotorSetZoomCoeff(motor_rb,output_zoom_coeff);
+    // DJIMotorSetZoomCoeff(motor_lf,output_zoom_coeff);
+    // DJIMotorSetZoomCoeff(motor_lb,output_zoom_coeff);
+    // DJIMotorSetZoomCoeff(motor_rf,output_zoom_coeff);
+    // DJIMotorSetZoomCoeff(motor_rb,output_zoom_coeff);
 }
 
 /**
