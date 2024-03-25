@@ -48,6 +48,7 @@ static Referee_Interactive_info_t ui_data; // UI数据，将底盘中的数据�
 
 static SuperCapInstance *cap;                                       // 超级电容
 static DJIMotorInstance *motor_lf, *motor_rf, *motor_lb, *motor_rb; // left right forward back
+static DJIMotorInstance *chassis_motor_instance[4];
 
 /* 用于自旋变速策略的时间变量 */
 // static float t;
@@ -55,7 +56,7 @@ static DJIMotorInstance *motor_lf, *motor_rf, *motor_lb, *motor_rb; // left righ
 /* 私有函数计算的中介变量,设为静态避免参数传递的开销 */
 static float chassis_vx, chassis_vy;     // 将云台系的速度投影到底盘
 static float vt_lf, vt_rf, vt_lb, vt_rb; // 底盘速度解算后的临时输出,待进行限幅
-static float output_zoom_coeff=1.0f;
+static float output_zoom_coeff = 1.0f;
 
 void ChassisInit()
 {
@@ -64,8 +65,8 @@ void ChassisInit()
         .can_init_config.can_handle = &hcan1,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp = 0.9, // 4.5
-                .Ki = 0.075, // 0
+                .Kp = 0.9,    // 4.5
+                .Ki = 0.075,  // 0
                 .Kd = 0.0002, // 0
                 .IntegralLimit = 1200,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
@@ -85,7 +86,8 @@ void ChassisInit()
             .speed_feedback_source = MOTOR_FEED,
             .outer_loop_type = SPEED_LOOP,
             //.close_loop_type = SPEED_LOOP | CURRENT_LOOP,
-            .close_loop_type = SPEED_LOOP ,
+            .close_loop_type = SPEED_LOOP,
+            .power_limit_flag=POWER_LIMIT_ON
         },
         .motor_type = M3508,
     };
@@ -93,18 +95,22 @@ void ChassisInit()
     chassis_motor_config.can_init_config.tx_id = 1;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_lf = DJIMotorInit(&chassis_motor_config);
+    chassis_motor_instance[0] = motor_lf;
 
     chassis_motor_config.can_init_config.tx_id = 4;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_rf = DJIMotorInit(&chassis_motor_config);
+    chassis_motor_instance[1] = motor_rf;
 
     chassis_motor_config.can_init_config.tx_id = 2;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_lb = DJIMotorInit(&chassis_motor_config);
+    chassis_motor_instance[2] = motor_lb;
 
     chassis_motor_config.can_init_config.tx_id = 3;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_rb = DJIMotorInit(&chassis_motor_config);
+    chassis_motor_instance[3] = motor_rb;
 
     referee_data = UITaskInit(&huart6, &ui_data); // 裁判系统初始化,会同时初始化UI
 
@@ -212,16 +218,25 @@ void ChassisBase<T...>::powerLimit()
 }
 */
 
-#define WHEEL_TORQUE_CONVERT(current) current / 16384.0f * 20 * 0.3 * REDUCTION_RATIO_WHEEL
+#define WHEEL_TORQUE_CONVERT(current) current / 16384.0f * 20.0f * 0.3f / REDUCTION_RATIO_WHEEL
 
-float effort_coeff_ = 0.000005;   // 电机力矩项系数
-float velocity_coeff_ = 0.000825000006; // 电机速度项系数
+float effort_coeff_ = 0.00005;           // 电机力矩项系数
+float velocity_coeff_ = 0.0000825000006; // 电机速度项系数
 
-float chassis_power_offset = -10.5;
+float chassis_power_offset = -10.5; // 冗余
 
 float chassis_power_limit;
-float chassis_power;
+float chassis_input_power;
 float chassis_power_buffer;
+float chassis_power_max;
+
+float chassis_pid_output[4];
+float chassis_pid_totaloutput;
+
+float toque_coefficient = 1.99688994e-6f; // (20/16384)*(0.3)*(187/3591)/9.55
+float k1 = 1.23e-07;                      // k1
+float k2 = 1.453e-07;                     // k2
+float constant_coefficient = 4.081f;
 
 double a = 0., b = 0., c = 0.;
 /**
@@ -230,66 +245,115 @@ double a = 0., b = 0., c = 0.;
  */
 static void LimitChassisOutput()
 {
+    chassis_pid_totaloutput = 0;
     chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
 
-    chassis_power = referee_data->PowerHeatData.chassis_power;
+    chassis_input_power = referee_data->PowerHeatData.chassis_power;
     chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
+
+    chassis_power_max = chassis_power_limit + chassis_power_offset;
 
     // 以下是参考广工开源的
     // Three coefficients of a quadratic equation in one variable
-    
 
-    // 把四个电机的值带入
-    a = float_Square(motor_lf->motor_controller.pid_output)
-    + float_Square(motor_lb->motor_controller.pid_output) 
-    + float_Square(motor_rf->motor_controller.pid_output)
-    + float_Square(motor_rb->motor_controller.pid_output);
+    // // 把四个电机的值带入
+    // a = float_Square(WHEEL_TORQUE_CONVERT(motor_lf->motor_controller.pid_output))
+    // + float_Square(WHEEL_TORQUE_CONVERT(motor_lb->motor_controller.pid_output))
+    // + float_Square(WHEEL_TORQUE_CONVERT(motor_rf->motor_controller.pid_output))
+    // + float_Square(WHEEL_TORQUE_CONVERT(motor_rb->motor_controller.pid_output));
 
-    // b = fabsf(WHEEL_TORQUE_CONVERT(motor_lf->motor_controller.pid_output) * motor_lf->measure.speed_aps) 
-    // + fabsf(WHEEL_TORQUE_CONVERT(motor_lb->motor_controller.pid_output) * motor_lb->measure.speed_aps) 
-    // + fabsf(WHEEL_TORQUE_CONVERT(motor_rf->motor_controller.pid_output) * motor_rf->measure.speed_aps) 
-    // + fabsf(WHEEL_TORQUE_CONVERT(motor_rb->motor_controller.pid_output) * motor_rb->measure.speed_aps);
+    // // b = fabsf(WHEEL_TORQUE_CONVERT(motor_lf->motor_controller.pid_output) * motor_lf->measure.speed_aps)
+    // // + fabsf(WHEEL_TORQUE_CONVERT(motor_lb->motor_controller.pid_output) * motor_lb->measure.speed_aps)
+    // // + fabsf(WHEEL_TORQUE_CONVERT(motor_rf->motor_controller.pid_output) * motor_rf->measure.speed_aps)
+    // // + fabsf(WHEEL_TORQUE_CONVERT(motor_rb->motor_controller.pid_output) * motor_rb->measure.speed_aps);
 
-    b = fabsf(motor_lf->motor_controller.pid_output * motor_lf->measure.speed_aps) 
-    + fabsf(motor_lb->motor_controller.pid_output * motor_lb->measure.speed_aps) 
-    + fabsf(motor_rf->motor_controller.pid_output * motor_rf->measure.speed_aps) 
-    + fabsf(motor_rb->motor_controller.pid_output * motor_rb->measure.speed_aps);
+    // b = fabsf(WHEEL_TORQUE_CONVERT(motor_lf->motor_controller.pid_output) * motor_lf->measure.speed_aps)
+    //     + fabsf(WHEEL_TORQUE_CONVERT(motor_lb->motor_controller.pid_output) * motor_lb->measure.speed_aps)
+    //     + fabsf(WHEEL_TORQUE_CONVERT(motor_rf->motor_controller.pid_output) * motor_rf->measure.speed_aps)
+    //     + fabsf(WHEEL_TORQUE_CONVERT(motor_rb->motor_controller.pid_output) * motor_rb->measure.speed_aps);
 
-    c = float_Square(motor_lf->measure.speed_aps) 
-    + float_Square(motor_lb->measure.speed_aps) 
-    + float_Square(motor_rf->measure.speed_aps) 
-    + float_Square(motor_rb->measure.speed_aps);
+    // c = float_Square(motor_lf->measure.speed_aps)
+    //     + float_Square(motor_lb->measure.speed_aps)
+    //     + float_Square(motor_rf->measure.speed_aps)
+    //     + float_Square(motor_rb->measure.speed_aps);
 
-    
-    a *= effort_coeff_;
-    c = c * velocity_coeff_;
-    c = c - chassis_power_offset - chassis_power_limit;
+    // a *= effort_coeff_;
+    // c = c * velocity_coeff_;
+    // c = c - chassis_power_offset - chassis_power_limit;
 
-    //求根公式解方程
-    double delta = float_Square(b) - 4 * a * c;
-    if(delta < 0)
+    // //求根公式解方程
+    // double delta = float_Square(b) - 4 * a * c;
+    // if(delta < 0)
+    // {
+    //     output_zoom_coeff=0;
+    // }
+    // else
+    // {
+    //     output_zoom_coeff = (-b + sqrt(delta)) / (2 * a);
+    // }
+
+    // if(isnan(output_zoom_coeff))
+    // {
+    //     output_zoom_coeff=0;
+    // }
+
+    // if( output_zoom_coeff < 0 | output_zoom_coeff>1)
+    // {
+    //     output_zoom_coeff=1;
+    // }
+
+    // 参考西交利物浦
+    float input_power = 0;       // input power from battery (referee system)
+    float initial_give_power[4]; // initial power from PID calculation
+    float initial_total_power = 0;
+    float scaled_give_power[4];
+
+    for (int i = 0; i < 4; i++)
     {
-        output_zoom_coeff=0;
+        chassis_pid_output[i] = toque_coefficient * chassis_motor_instance[i]->measure.speed_rpm * chassis_motor_instance[i]->motor_controller.pid_output + k2 * float_Square(chassis_motor_instance[i]->measure.speed_rpm) + k1 * float_Square(chassis_motor_instance[i]->motor_controller.pid_output) + constant_coefficient;
+        if (chassis_pid_output[i] < 0)
+        {
+            continue;
+        }
+        else
+        {
+            chassis_pid_totaloutput += chassis_pid_output[i];
+        }
+    }
+
+    if (chassis_pid_totaloutput > chassis_power_max) // 超出功率
+    {
+        output_zoom_coeff = chassis_power_max / chassis_pid_totaloutput;
+        for (int i = 0; i < 4; i++)
+        {
+            chassis_pid_output[i] *= output_zoom_coeff;
+            if (chassis_pid_output[i] < 0)
+            {
+                continue;
+            }
+
+            float a = k1;
+            float b = toque_coefficient * chassis_motor_instance[i]->measure.speed_rpm;
+            float c = k2 * float_Square(chassis_motor_instance[i]->measure.speed_rpm) - chassis_pid_output[i] + constant_coefficient;
+            // k2 * chassis_power_control->motor_chassis[i].chassis_motor_measure->speed_rpm * chassis_power_control->motor_chassis[i].chassis_motor_measure->speed_rpm - scaled_give_power[i] + constant;
+
+            if (chassis_motor_instance[i]->motor_controller.pid_output > 0) // Selection of the calculation formula according to the direction of the original moment
+            {
+                float temp = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+                DJIMotorSetOutputLimit(chassis_motor_instance[i], temp);
+            }
+            else
+            {
+                float temp = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
+                DJIMotorSetOutputLimit(chassis_motor_instance[i], temp);
+            }
+        }
     }
     else
     {
-        output_zoom_coeff = (-b + sqrt(delta)) / (2 * a);
+        for (int i = 0; i < 4; i++)
+            DJIMotorSetOutputLimit(chassis_motor_instance[i], chassis_motor_instance[i]->motor_controller.pid_output);
     }
-
-    if(isnan(output_zoom_coeff))
-    {
-        output_zoom_coeff=0;
-    }
-
-    if( output_zoom_coeff < 0 | output_zoom_coeff>1)
-    {
-        output_zoom_coeff=1;
-    }
-
-    DJIMotorSetZoomCoeff(motor_lf,output_zoom_coeff);
-    DJIMotorSetZoomCoeff(motor_lb,output_zoom_coeff);
-    DJIMotorSetZoomCoeff(motor_rf,output_zoom_coeff);
-    DJIMotorSetZoomCoeff(motor_rb,output_zoom_coeff);
 }
 
 /**

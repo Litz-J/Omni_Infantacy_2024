@@ -137,6 +137,7 @@ static void DecodeDJIMotor(CANInstance *_instance)
     measure->angle_single_round = ECD_ANGLE_COEF_DJI * (float)measure->ecd;
     measure->speed_aps = (1.0f - SPEED_SMOOTH_COEF) * measure->speed_aps +
                          RPM_2_ANGLE_PER_SEC * SPEED_SMOOTH_COEF * (float)((int16_t)(rxbuff[2] << 8 | rxbuff[3]));
+    measure->speed_rpm=(float)((int16_t)(rxbuff[2] << 8 | rxbuff[3]));
     measure->real_current = (1.0f - CURRENT_SMOOTH_COEF) * measure->real_current +
                             CURRENT_SMOOTH_COEF * (float)((int16_t)(rxbuff[4] << 8 | rxbuff[5]));
     measure->temperature = rxbuff[6];
@@ -174,8 +175,6 @@ DJIMotorInstance *DJIMotorInit(Motor_Init_Config_s *config)
     instance->motor_controller.other_speed_feedback_ptr = config->controller_param_init_config.other_speed_feedback_ptr;
     instance->motor_controller.current_feedforward_ptr = config->controller_param_init_config.current_feedforward_ptr;
     instance->motor_controller.speed_feedforward_ptr = config->controller_param_init_config.speed_feedforward_ptr;
-    instance->motor_controller.output_zoom_coeff=1.0f;
-    instance->motor_controller.ref_zoom_coeff=1.0f;
     // 后续增加电机前馈控制器(速度和电流)
 
     // 电机分组,因为至多4个电机可以共用一帧CAN控制报文
@@ -232,10 +231,9 @@ void DJIMotorSetRef(DJIMotorInstance *motor, float ref)
     motor->motor_controller.pid_ref = ref;
 }
 
-void DJIMotorSetZoomCoeff(DJIMotorInstance *motor, float zoom_coeff)
+void DJIMotorSetOutputLimit(DJIMotorInstance *motor, float output_limit)
 {
-    //motor->motor_controller.output_zoom_coeff = zoom_coeff;
-    motor->motor_controller.ref_zoom_coeff = zoom_coeff;
+    motor->motor_controller.pid_output_limit=output_limit;
 }
 
 // 为所有电机实例计算三环PID,发送控制报文
@@ -259,7 +257,7 @@ void DJIMotorControl()
         measure = &motor->measure;
         pid_ref = motor_controller->pid_ref; // 保存设定值,防止motor_controller->pid_ref在计算过程中被修改
         
-        pid_ref*=motor_controller->ref_zoom_coeff;
+        //pid_ref*=motor_controller->ref_zoom_coeff;
 
         if (motor_setting->motor_reverse_flag == MOTOR_DIRECTION_REVERSE)
             pid_ref *= -1; // 设置反转
@@ -301,13 +299,16 @@ void DJIMotorControl()
         if (motor_setting->feedback_reverse_flag == FEEDBACK_DIRECTION_REVERSE)
             pid_ref *= -1;
 
-        motor_controller -> pid_output = pid_ref;
+        motor_controller->pid_output=pid_ref;
 
-        //缩放限制功率
-        pid_ref *= motor_controller->output_zoom_coeff;
-
-        // 获取最终输出
+        // 获取最终输出，
         set = (int16_t)pid_ref;
+
+        //如果有功率限制则用pid_output
+        if(motor_setting->power_limit_flag==POWER_LIMIT_ON)
+        {
+            set=(int16_t)motor_controller->pid_output_limit;
+        }
 
         // 分组填入发送数据
         group = motor->sender_group;

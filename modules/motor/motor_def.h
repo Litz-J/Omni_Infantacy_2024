@@ -62,6 +62,13 @@ typedef enum
     FEEDBACK_DIRECTION_NORMAL = 0,
     FEEDBACK_DIRECTION_REVERSE = 1
 } Feedback_Reverse_Flag_e;
+
+/* 是否使用功率限制标志，如底盘。如果是则将使用外部的pid_output进行输出限幅*/
+typedef enum
+{
+    POWET_LIMIT_OFF = 0,
+    POWER_LIMIT_ON = 1
+} Power_Limit_Flag_e;
 typedef enum
 {
     MOTOR_STOP = 0,
@@ -78,6 +85,7 @@ typedef struct
     Feedback_Source_e angle_feedback_source;       // 角度反馈类型
     Feedback_Source_e speed_feedback_source;       // 速度反馈类型
     Feedfoward_Type_e feedforward_flag;            // 前馈标志
+    Power_Limit_Flag_e power_limit_flag;           // 功率限制标志
 
 } Motor_Control_Setting_s;
 
@@ -96,8 +104,7 @@ typedef struct
 
     float pid_ref; // 将会作为每个环的输入和输出顺次通过串级闭环
     float pid_output;
-    float output_zoom_coeff;
-    float ref_zoom_coeff;
+    float pid_output_limit;//经过输出限幅的值。如果有标志位将会用这个来发送
 } Motor_Controller_s;
 
 /* 电机类型枚举 */
