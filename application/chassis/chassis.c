@@ -223,7 +223,7 @@ void ChassisBase<T...>::powerLimit()
 float effort_coeff_ = 0.00005;           // 电机力矩项系数
 float velocity_coeff_ = 0.0000825000006; // 电机速度项系数
 
-float chassis_power_offset = -10.5; // 冗余
+float chassis_power_offset = -5; // 冗余
 
 float chassis_power_limit;
 float chassis_input_power;
@@ -252,55 +252,6 @@ static void LimitChassisOutput()
     chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
 
     chassis_power_max = chassis_power_limit + chassis_power_offset;
-
-    // 以下是参考广工开源的
-    // Three coefficients of a quadratic equation in one variable
-
-    // // 把四个电机的值带入
-    // a = float_Square(WHEEL_TORQUE_CONVERT(motor_lf->motor_controller.pid_output))
-    // + float_Square(WHEEL_TORQUE_CONVERT(motor_lb->motor_controller.pid_output))
-    // + float_Square(WHEEL_TORQUE_CONVERT(motor_rf->motor_controller.pid_output))
-    // + float_Square(WHEEL_TORQUE_CONVERT(motor_rb->motor_controller.pid_output));
-
-    // // b = fabsf(WHEEL_TORQUE_CONVERT(motor_lf->motor_controller.pid_output) * motor_lf->measure.speed_aps)
-    // // + fabsf(WHEEL_TORQUE_CONVERT(motor_lb->motor_controller.pid_output) * motor_lb->measure.speed_aps)
-    // // + fabsf(WHEEL_TORQUE_CONVERT(motor_rf->motor_controller.pid_output) * motor_rf->measure.speed_aps)
-    // // + fabsf(WHEEL_TORQUE_CONVERT(motor_rb->motor_controller.pid_output) * motor_rb->measure.speed_aps);
-
-    // b = fabsf(WHEEL_TORQUE_CONVERT(motor_lf->motor_controller.pid_output) * motor_lf->measure.speed_aps)
-    //     + fabsf(WHEEL_TORQUE_CONVERT(motor_lb->motor_controller.pid_output) * motor_lb->measure.speed_aps)
-    //     + fabsf(WHEEL_TORQUE_CONVERT(motor_rf->motor_controller.pid_output) * motor_rf->measure.speed_aps)
-    //     + fabsf(WHEEL_TORQUE_CONVERT(motor_rb->motor_controller.pid_output) * motor_rb->measure.speed_aps);
-
-    // c = float_Square(motor_lf->measure.speed_aps)
-    //     + float_Square(motor_lb->measure.speed_aps)
-    //     + float_Square(motor_rf->measure.speed_aps)
-    //     + float_Square(motor_rb->measure.speed_aps);
-
-    // a *= effort_coeff_;
-    // c = c * velocity_coeff_;
-    // c = c - chassis_power_offset - chassis_power_limit;
-
-    // //求根公式解方程
-    // double delta = float_Square(b) - 4 * a * c;
-    // if(delta < 0)
-    // {
-    //     output_zoom_coeff=0;
-    // }
-    // else
-    // {
-    //     output_zoom_coeff = (-b + sqrt(delta)) / (2 * a);
-    // }
-
-    // if(isnan(output_zoom_coeff))
-    // {
-    //     output_zoom_coeff=0;
-    // }
-
-    // if( output_zoom_coeff < 0 | output_zoom_coeff>1)
-    // {
-    //     output_zoom_coeff=1;
-    // }
 
     // 参考西交利物浦
     float input_power = 0;       // input power from battery (referee system)
@@ -337,15 +288,15 @@ static void LimitChassisOutput()
             float c = k2 * float_Square(chassis_motor_instance[i]->measure.speed_rpm) - chassis_pid_output[i] + constant_coefficient;
             // k2 * chassis_power_control->motor_chassis[i].chassis_motor_measure->speed_rpm * chassis_power_control->motor_chassis[i].chassis_motor_measure->speed_rpm - scaled_give_power[i] + constant;
 
-            if (chassis_motor_instance[i]->motor_controller.pid_output > 0) // Selection of the calculation formula according to the direction of the original moment
+            if (chassis_motor_instance[i]->motor_controller.pid_output > 0) 
             {
                 float temp = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-                DJIMotorSetOutputLimit(chassis_motor_instance[i], temp);
+                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp,12000));
             }
             else
             {
                 float temp = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
-                DJIMotorSetOutputLimit(chassis_motor_instance[i], temp);
+                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp,12000));
             }
         }
     }

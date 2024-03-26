@@ -502,6 +502,7 @@ static void MouseKeySet()
             break;
         default:
             chassis_cmd_send.wz = 3500.0f + 500.0f * float_constrain(sin(DWT_GetTimeline_s()*3.14*0.85)*sin(DWT_GetTimeline_s()*3.14*0.375),-0.45,0.675);
+            chassis_cmd_send.wz = 3500.0f;
             break;
         
     }
