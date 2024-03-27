@@ -10,6 +10,7 @@
  * @copyright Copyright (c) 2022
  *
  */
+#include "stdbool.h"
 
 #include "chassis.h"
 #include "robot_def.h"
@@ -198,9 +199,13 @@ float chassis_power_max;
 float chassis_power_offset = -5; // 冗余
 
 float toque_coefficient = 1.99688994e-6f; // (20/16384)*(0.3)*(187/3591)/9.55
-float k1 = 1.26e-07;                      // k1
-float k2 = 1.353e-07;                     // k2
+float k1 = 1.26e-07;                      // k1，9.50000043e-08
+float k2 = 1.95000013e-07;                     // k2
 float constant_coefficient = 3.081f;
+
+bool isLowBuffer=false;
+
+#define CHASSIS_POWER_COFFICIENT (1-(float)(120-45)/(float)(135-45))    //这个量出现是因为我们的电机阻力较大，导致理论值和实际值相差较大，用于补偿
 
 /**
  * @brief 对功率进行缩放，参考西交利物浦的方案
@@ -209,12 +214,34 @@ float constant_coefficient = 3.081f;
 static void LimitChassisOutput()
 {
     chassis_pid_totaloutput = 0;
-    chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
+    chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;//从裁判系统获取的能量限制
 
     chassis_input_power = referee_data->PowerHeatData.chassis_power;
     chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
 
+    
+    //根据缓冲能量和当前功率限制，计算最大功率值
+    chassis_power_offset = -1*CHASSIS_POWER_COFFICIENT*(chassis_power_limit-45) - 5 ;
+
     chassis_power_max = chassis_power_limit + chassis_power_offset;
+
+    if(isLowBuffer)
+    {
+        chassis_power_max = chassis_power_limit - 15;
+        if(chassis_power_buffer >=55.0f)
+        {
+            isLowBuffer=false;
+        }
+    }
+    else
+    {
+        //缓冲能量判断，如果缓冲能量少，则马上减小功率，减少量待测
+        if(chassis_power_buffer < 10.0f)
+        {
+            isLowBuffer=true;
+            chassis_power_max = chassis_power_limit - 15;
+        }
+    }
 
     // 参考西交利物浦
     for (int i = 0; i < 4; i++)
@@ -276,7 +303,7 @@ static void EstimateSpeed()
     // chassis_feedback_data.vx vy wz =
     //  ...
 }
-float rotationspeed = 4000;
+
 /* 机器人底盘控制核心任务 */
 void ChassisTask()
 {

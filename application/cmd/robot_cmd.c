@@ -506,6 +506,17 @@ static void MouseKeySet()
             break;
         
     }
+
+}
+
+static void SpeedDistribution()
+{
+    //移动时小陀螺减速
+    if(chassis_cmd_send.vx!=0||chassis_cmd_send.vy!=0)
+    {
+        if(chassis_cmd_send.wz>4000.0f&&chassis_cmd_send.chassis_mode == CHASSIS_ROTATE)
+            chassis_cmd_send.wz *=0.8f;
+    }    
 }
 
 /**
@@ -558,6 +569,8 @@ void RobotCMDTask()
         RemoteControlSet();
     else if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
         MouseKeySet();
+
+    SpeedDistribution();
 
     EmergencyHandler(); // 处理模块离线和遥控器急停等紧急情况
 
