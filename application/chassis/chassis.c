@@ -65,12 +65,12 @@ void ChassisInit()
         .can_init_config.can_handle = &hcan1,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp = 0.9,    // 4.5
-                .Ki = 0.075,  // 0
+                .Kp = 0.8,    // 4.5
+                .Ki = 0.08,  // 0
                 .Kd = 0.0002, // 0
-                .IntegralLimit = 1200,
+                .IntegralLimit = 3000,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-                .MaxOut = 10000,
+                .MaxOut = 12000,
             },
             .current_PID = {
                 .Kp = 0.8,  // 0.4
@@ -188,59 +188,22 @@ static void ChassisSetRef()
     DJIMotorSetRef(motor_rb, vt_rb);
 }
 
-// 参考广工功率控制
-/*
-void ChassisBase<T...>::powerLimit()
-{
-  double power_limit = cmd_rt_buffer_.readFromRT()->cmd_chassis_.power_limit;
-  // Three coefficients of a quadratic equation in one variable
-  double a = 0., b = 0., c = 0.;
-  for (const auto& joint : joint_handles_)
-  {
-    double cmd_effort = joint.getCommand();
-    double real_vel = joint.getVelocity();
-    if (joint.getName().find("wheel") != std::string::npos)  // The pivot joint of swerve drive doesn't need power limit
-    {
-      a += square(cmd_effort);
-      b += std::abs(cmd_effort * real_vel);
-      c += square(real_vel);
-    }
-  }
-  a *= effort_coeff_;
-  c = c * velocity_coeff_ - power_offset_ - power_limit;
-  // Root formula for quadratic equation in one variable
-  double zoom_coeff = (square(b) - 4 * a * c) > 0 ? ((-b + sqrt(square(b) - 4 * a * c)) / (2 * a)) : 0.;
-  for (auto joint : joint_handles_)
-    if (joint.getName().find("wheel") != std::string::npos)
-    {
-      joint.setCommand(zoom_coeff > 1 ? joint.getCommand() : joint.getCommand() * zoom_coeff);
-    }
-}
-*/
-
-#define WHEEL_TORQUE_CONVERT(current) current / 16384.0f * 20.0f * 0.3f / REDUCTION_RATIO_WHEEL
-
-float effort_coeff_ = 0.00005;           // 电机力矩项系数
-float velocity_coeff_ = 0.0000825000006; // 电机速度项系数
-
-float chassis_power_offset = -5; // 冗余
+float chassis_pid_output[4];
+float chassis_pid_totaloutput;
 
 float chassis_power_limit;
 float chassis_input_power;
 float chassis_power_buffer;
 float chassis_power_max;
-
-float chassis_pid_output[4];
-float chassis_pid_totaloutput;
+float chassis_power_offset = -5; // 冗余
 
 float toque_coefficient = 1.99688994e-6f; // (20/16384)*(0.3)*(187/3591)/9.55
-float k1 = 1.23e-07;                      // k1
-float k2 = 1.453e-07;                     // k2
-float constant_coefficient = 4.081f;
+float k1 = 1.26e-07;                      // k1
+float k2 = 1.353e-07;                     // k2
+float constant_coefficient = 3.081f;
 
-double a = 0., b = 0., c = 0.;
 /**
- * @brief 根据裁判系统和电容剩余容量对输出进行限制并设置电机参考值
+ * @brief 对功率进行缩放，参考西交利物浦的方案
  *
  */
 static void LimitChassisOutput()
@@ -254,11 +217,6 @@ static void LimitChassisOutput()
     chassis_power_max = chassis_power_limit + chassis_power_offset;
 
     // 参考西交利物浦
-    float input_power = 0;       // input power from battery (referee system)
-    float initial_give_power[4]; // initial power from PID calculation
-    float initial_total_power = 0;
-    float scaled_give_power[4];
-
     for (int i = 0; i < 4; i++)
     {
         chassis_pid_output[i] = toque_coefficient * chassis_motor_instance[i]->measure.speed_rpm * chassis_motor_instance[i]->motor_controller.pid_output + k2 * float_Square(chassis_motor_instance[i]->measure.speed_rpm) + k1 * float_Square(chassis_motor_instance[i]->motor_controller.pid_output) + constant_coefficient;
@@ -291,12 +249,12 @@ static void LimitChassisOutput()
             if (chassis_motor_instance[i]->motor_controller.pid_output > 0) 
             {
                 float temp = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp,12000));
+                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp,13000));
             }
             else
             {
                 float temp = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
-                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp,12000));
+                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp,13000));
             }
         }
     }
