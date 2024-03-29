@@ -69,7 +69,7 @@ void ChassisInit()
                 .Kp = 0.8,    // 4.5
                 .Ki = 0.08,  // 0
                 .Kd = 0.0002, // 0
-                .IntegralLimit = 3000,
+                .IntegralLimit = 2000,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .MaxOut = 12000,
             },
@@ -218,16 +218,20 @@ static void LimitChassisOutput()
 
     chassis_input_power = referee_data->PowerHeatData.chassis_power;
     chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
-
     
+    if(chassis_power_limit>=100)
+    {
+        chassis_power_limit=100;
+    }
+
     //根据缓冲能量和当前功率限制，计算最大功率值
-    chassis_power_offset = -1*CHASSIS_POWER_COFFICIENT*(chassis_power_limit-45) - 5 ;
+    chassis_power_offset = -1*CHASSIS_POWER_COFFICIENT*(chassis_power_limit-45) - 15 ;
 
     chassis_power_max = chassis_power_limit + chassis_power_offset;
 
     if(isLowBuffer)
     {
-        chassis_power_max = chassis_power_limit - 15;
+        chassis_power_max = chassis_power_max - 15;
         if(chassis_power_buffer >=55.0f)
         {
             isLowBuffer=false;
@@ -239,7 +243,7 @@ static void LimitChassisOutput()
         if(chassis_power_buffer < 10.0f)
         {
             isLowBuffer=true;
-            chassis_power_max = chassis_power_limit - 15;
+            chassis_power_max = chassis_power_max - 15;
         }
     }
 
@@ -301,6 +305,7 @@ static void EstimateSpeed()
 {
     // 根据电机速度和陀螺仪的角速度进行解算,还可以利用加速度计判断是否打滑(如果有)
     // chassis_feedback_data.vx vy wz =
+    chassis_feedback_data.real_wz = (-motor_lf->measure.speed_aps - motor_rf->measure.speed_aps - motor_lb->measure.speed_aps - motor_rb->measure.speed_aps) / (LF_CENTER + RF_CENTER + LB_CENTER + RB_CENTER);
     //  ...
 }
 
@@ -342,7 +347,7 @@ void ChassisTask()
         chassis_cmd_recv.wz = 0;
         break;
     case CHASSIS_FOLLOW_GIMBAL_YAW: // 跟随云台,不单独设置pid,以误差角度平方为速度输出
-        chassis_cmd_recv.wz = -0.8f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        chassis_cmd_recv.wz = -1.5f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
     case CHASSIS_ROTATE: // 自旋,同时保持全向机动;当前wz维持定值,后续增加不规则的变速策略
         // chassis_cmd_recv.wz = rotationspeed;

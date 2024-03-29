@@ -192,7 +192,7 @@ static void RemoteControlSet()
         gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
         shoot_cmd_send.friction_mode = FRICTION_OFF;
         shoot_cmd_send.load_mode=LOAD_STOP;
-        
+        gimbal_cmd_send.lid_mode=LID_CLOSE;
     }
     else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[中],底盘和云台分离,底盘保持不转动
     {
@@ -200,6 +200,7 @@ static void RemoteControlSet()
         gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
         shoot_cmd_send.friction_mode = FRICTION_OFF;
         shoot_cmd_send.load_mode=LOAD_STOP;
+        gimbal_cmd_send.lid_mode=LID_CLOSE;
     }
     else if (switch_is_up(rc_data[TEMP].rc.switch_right)) // 跟随
     {
@@ -207,30 +208,9 @@ static void RemoteControlSet()
         gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
         shoot_cmd_send.friction_mode = FRICTION_OFF;
         shoot_cmd_send.load_mode=LOAD_STOP;
+        gimbal_cmd_send.lid_mode=LID_CLOSE;
         
     }
-    //普通模式，不自瞄调试就用这段
-    // 控制底盘和云台运行模式,云台待添加,云台是否始终使用IMU数据?
-    //     if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],小陀螺
-    // {
-    //     chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
-    //     gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
-    //     shoot_cmd_send.friction_mode = FRICTION_ON;
-        
-    // }
-    // else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[中],底盘和云台分离,底盘保持不转动
-    // {
-    //     chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
-    //     gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
-    //     shoot_cmd_send.friction_mode = FRICTION_OFF;
-    // }
-    // else if (switch_is_up(rc_data[TEMP].rc.switch_right)) // 跟随
-    // {
-    //     chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
-    //     gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
-    //     shoot_cmd_send.friction_mode = FRICTION_ON;
-        
-    // }
     float pitch_offset=-70;
     float yaw_offset=0;
     if(vision_recv_data->pitch==0 && pid_pitch_vision->Last_Measure==0)
@@ -246,16 +226,14 @@ static void RemoteControlSet()
     // 云台参数,确定云台控制数据
     if (switch_is_mid(rc_data[TEMP].rc.switch_left)) // 左侧开关状态为[中],视觉模式
     {
-        // 待添加,视觉会发来和目标的误差,同样将其转化为total angle的增量进行控制
-        // ...
         gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_+pid_yaw_vision->Output;
         gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1-pid_pitch_vision->Output;
     }
     // 左侧开关状态为[下],或视觉未识别到目标,纯遥控器拨杆控制
     if (switch_is_down(rc_data[TEMP].rc.switch_left) || vision_recv_data->target_state == NO_TARGET)
     { // 按照摇杆的输出大小进行角度增量,增益系数需调整
-        gimbal_cmd_send.yaw += 0.003f * (float)rc_data[TEMP].rc.rocker_l_-pid_yaw_vision->Output;
-        gimbal_cmd_send.pitch -= 0.003f * (float)rc_data[TEMP].rc.rocker_l1-pid_pitch_vision->Output;
+        gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_-pid_yaw_vision->Output;
+        gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1-pid_pitch_vision->Output;
     }
 
     // 云台软件限位
@@ -269,53 +247,36 @@ static void RemoteControlSet()
     }
 
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
-    chassis_cmd_send.vx = 25.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
-    chassis_cmd_send.vy = 25.0f * (float)rc_data[TEMP].rc.rocker_r1; // 竖直方向
+    chassis_cmd_send.vx = 22.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
+    chassis_cmd_send.vy = 22.0f * (float)rc_data[TEMP].rc.rocker_r1; // 竖直方向
 
     chassis_cmd_send.wz = 6000.0f;
-    //chassis_cmd_send.wz = 4500.0f+ 600.0f * float_constrain(sin(DWT_GetTimeline_s()*3.14*3.2),-0.25,0.45);
-
-    //\sin\left(x\cdot3.14\cdot4.756\right)\cdot\sin\left(x\cdot3.14\cdot3.07\right)
-    //chassis_cmd_send.wz = 3500.0f + 500.0f * float_constrain(sin(DWT_GetTimeline_s()*3.14*0.85)*sin(DWT_GetTimeline_s()*3.14*0.375),-0.45,0.675);
-    // if(switch_is_down(rc_data[TEMP].rc.switch_left)&&shoot_cmd_send.friction_mode == FRICTION_ON)
-    //     {
-    //             shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
-    //     }
-    //         else
-    //         {
-    //             shoot_cmd_send.load_mode = LOAD_STOP;
-    //     }
-
-
-    // // 发射参数
-    // if (switch_is_up(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[上],弹舱打开
-    // {
-    //     //shoot_cmd_send.load_mode = LOAD_BURSTFIRE;                                            // 弹舱舵机控制,待添加servo_motor模块,开启
-    // }
-    // else
-    // {
-    //     //shoot_cmd_send.load_mode = LOAD_STOP;
-    //     // 弹舱舵机控制,待添加servo_motor模块,关闭
-
-    // }
-        
-    // 摩擦轮控制,拨轮向上打为负,向下为正
-    // if (rc_data[TEMP].rc.dial < -100) // 向上超过100,打开摩擦轮
-    //     shoot_cmd_send.friction_mode = FRICTION_ON;
-    // else
-    //     ;
-        //shoot_cmd_send.friction_mode = FRICTION_OFF;
-    // 拨弹控制,遥控器固定为一种拨弹模式,可自行选择
-    // if (rc_data[TEMP].rc.dial < -500)
-    //     shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
-    // else
-    //     ;
-    //     //shoot_cmd_send.load_mode = LOAD_STOP;
-    // 射频控制,固定每秒1发,后续可以根据左侧拨轮的值大小切换射频,
     shoot_cmd_send.shoot_rate = 8;
 }
 
-float chassis_speed_mouse=24000;//十级10000
+static void RemoteShootSet()
+{
+    shoot_cmd_send.shoot_rate = 4;
+    chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
+        gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+        shoot_cmd_send.friction_mode = FRICTION_OFF;
+        shoot_cmd_send.load_mode=LOAD_STOP;
+        gimbal_cmd_send.lid_mode=LID_CLOSE;
+    if (switch_is_mid(rc_data[TEMP].rc.switch_right)) 
+    {
+        shoot_cmd_send.friction_mode = FRICTION_ON;
+        shoot_cmd_send.load_mode=LOAD_STOP;
+        gimbal_cmd_send.lid_mode=LID_OPEN;
+    }
+    if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],小陀螺
+    {
+        shoot_cmd_send.friction_mode = FRICTION_ON;
+        shoot_cmd_send.load_mode=LOAD_BURSTFIRE;
+        gimbal_cmd_send.lid_mode=LID_CLOSE;
+    }
+}
+
+float chassis_speed_mouse=18000;//十级10000
 
 /**
  * @brief 输入为键鼠时模式和控制量设置
@@ -326,8 +287,8 @@ static void MouseKeySet()
     chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w *  chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].s * chassis_speed_mouse; // 系数待测
     chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].d * chassis_speed_mouse;
 
-    gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 11.0f; // 系数待测
-    gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 11.0f;
+    gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 6.0f; // 系数待测
+    gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 6.0f;
 
     // 云台软件限位
     if(gimbal_cmd_send.pitch>=PITCH_MAX_ANGLE)
@@ -351,18 +312,12 @@ static void MouseKeySet()
         shoot_cmd_send.bullet_speed = 30;
         break;
     }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 3) // E键设置发射模式
+    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 2) // E键设置发射模式
     {
     case 0:
     {
         shoot_cmd_send.load_mode = LOAD_STOP;
         chassis_cmd_send.load_mode = LOAD_STOP;
-        break;
-    }
-    case 1:
-    {
-        shoot_cmd_send.load_mode = LOAD_1_BULLET;
-        chassis_cmd_send.load_mode = LOAD_1_BULLET;
         break;
     }
         
@@ -391,14 +346,14 @@ static void MouseKeySet()
         shoot_cmd_send.shoot_rate=12;
         chassis_cmd_send.shoot_mode = SHOOT_ON;
     }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 3)  //Q设置底盘模式
+    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 2)  //Q设置底盘模式
     {
     case 0:
         chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
         break;
-    case 1:
-        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
-        break;
+    // case 1:
+    //     chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+    //     break;
     default:
         chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
         break;
@@ -502,20 +457,22 @@ static void MouseKeySet()
             break;
         default:
             chassis_cmd_send.wz = 3500.0f + 500.0f * float_constrain(sin(DWT_GetTimeline_s()*3.14*0.85)*sin(DWT_GetTimeline_s()*3.14*0.375),-0.45,0.675);
-            chassis_cmd_send.wz = 3500.0f;
+            //chassis_cmd_send.wz = 3500.0f;
             break;
         
     }
 
 }
 
+//对速度进行处理，包括归一化、小陀螺速度重新分配等
 static void SpeedDistribution()
 {
+    
     //移动时小陀螺减速
     if(chassis_cmd_send.vx!=0||chassis_cmd_send.vy!=0)
     {
         if(chassis_cmd_send.wz>4000.0f&&chassis_cmd_send.chassis_mode == CHASSIS_ROTATE)
-            chassis_cmd_send.wz *=0.8f;
+            chassis_cmd_send.wz *=0.75f;
     }    
 }
 
@@ -569,6 +526,8 @@ void RobotCMDTask()
         RemoteControlSet();
     else if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
         MouseKeySet();
+    else if(switch_is_mid(rc_data[TEMP].rc.switch_left))
+        RemoteShootSet();
 
     SpeedDistribution();
 

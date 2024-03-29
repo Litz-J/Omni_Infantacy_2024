@@ -52,7 +52,7 @@ void ServoSetAngle(ServoInstance *servo, float angle)
         break;
     case PWM_Servo:
         servo->angle = angle;
-        PWMSetDutyRatio(servo->pwm_instance, angle);
+        PWMSetDutyRatio(servo->pwm_instance,angle);
         break;
     default:
         break;

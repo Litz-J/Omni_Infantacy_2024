@@ -1,13 +1,18 @@
 #include "gimbal.h"
 #include "robot_def.h"
 #include "dji_motor.h"
+#include "servo_motor.h"
 #include "ins_task.h"
 #include "message_center.h"
 #include "general_def.h"
 #include "bmi088.h"
 
+extern TIM_HandleTypeDef htim1;
+
 static attitude_t *gimba_IMU_data; // 云台IMU数据
 static DJIMotorInstance *yaw_motor, *pitch_motor;
+
+static ServoInstance *hatch_motor;
 
 static Publisher_t *gimbal_pub;                   // 云台应用消息发布者(云台反馈给cmd)
 static Subscriber_t *gimbal_sub;                  // cmd控制消息订阅者
@@ -27,18 +32,18 @@ void GimbalInit()
         //无头：angle:8,0,0.32,max400,speed:40,200,0,max15000
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp = 60, //65
-                .Ki = 0.4,//0.4
-                .Kd = 4.275,  //4.275
+                .Kp = 60 , //65
+                .Ki = 0.25,//0.4
+                .Kd = 6.1,  //4.275
                 .DeadBand = 0.025,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
                 .IntegralLimit = 5,
-                .MaxOut = 300,
-                .Derivative_LPF_RC= 0.00724999979,
+                .MaxOut = 150,
+                .Derivative_LPF_RC= 0.00944999979,
             },
             .speed_PID = {
-                .Kp = 40,  // 40
-                .Ki = 200, // 200
+                .Kp = 80,  // 40
+                .Ki = 150, // 200
                 .Kd = 0,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
                 .IntegralLimit = 7000,
@@ -66,16 +71,16 @@ void GimbalInit()
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp = 30, // 10
+                .Kp = 40, // 10
                 .Ki = 0.05,
-                .Kd = 1.4,
+                .Kd = 1.695,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
                 .IntegralLimit = 5,
                 .MaxOut = 100,
-                .Derivative_LPF_RC= 0.00900000005,
+                .Derivative_LPF_RC= 0.01200000005,
             },
             .speed_PID = {
-                .Kp = 80,  // 50
+                .Kp = 85,  // 50
                 .Ki = 405, // 350
                 .Kd = 0,   // 0
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
@@ -100,8 +105,37 @@ void GimbalInit()
     yaw_motor = DJIMotorInit(&yaw_config);
     pitch_motor = DJIMotorInit(&pitch_config);
 
+    Servo_Init_Config_s servo_config=
+    {
+        .servo_type = PWM_Servo,
+        .pwm_init_config={
+            .htim=&htim1,
+            .channel=TIM_CHANNEL_1,
+            .dutyratio=0,
+            .period=0.02f
+            },
+    };
+
+    hatch_motor=ServoInit(&servo_config);
+
     gimbal_pub = PubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
     gimbal_sub = SubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
+}
+
+#define SERVO_CONVERT(target,max) (2.5+(12.5-2.5)*(max+(1-target))/(float)(max))/100.0f
+int servooutput;
+void LidControl()
+{
+    switch (gimbal_cmd_recv.lid_mode)
+    {
+    case LID_OPEN:
+        ServoSetAngle(hatch_motor,SERVO_CONVERT(0,180));
+        break;
+    
+    default:
+        ServoSetAngle(hatch_motor,SERVO_CONVERT(60,180));
+        break;
+    }
 }
 
 /* 机器人云台控制核心任务,后续考虑只保留IMU控制,不再需要电机的反馈 */
@@ -110,6 +144,8 @@ void GimbalTask()
     // 获取云台控制数据
     // 后续增加未收到数据的处理
     SubGetMessage(gimbal_sub, &gimbal_cmd_recv);
+
+    LidControl();
 
     // @todo:现在已不再需要电机反馈,实际上可以始终使用IMU的姿态数据来作为云台的反馈,yaw电机的offset只是用来跟随底盘
     // 根据控制模式进行电机反馈切换和过渡,视觉模式在robot_cmd模块就已经设置好,gimbal只看yaw_ref和pitch_ref
