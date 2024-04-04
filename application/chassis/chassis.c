@@ -200,12 +200,12 @@ float chassis_power_offset = -5; // 冗余
 
 float toque_coefficient = 1.99688994e-6f; // (20/16384)*(0.3)*(187/3591)/9.55
 float k1 = 1.26e-07;                      // k1，9.50000043e-08
-float k2 = 1.95000013e-07;                     // k2
-float constant_coefficient = 3.081f;
+float k2 = 3.95000013e-07;                     // k2
+float constant_coefficient = 4.081f;
 
 bool isLowBuffer=false;
 
-#define CHASSIS_POWER_COFFICIENT (1-(float)(120-45)/(float)(135-45))    //这个量出现是因为我们的电机阻力较大，导致理论值和实际值相差较大，用于补偿
+#define CHASSIS_POWER_COFFICIENT (1-(float)(120-45)/(float)(135-50))    //这个量出现是因为我们的电机阻力较大，导致理论值和实际值相差较大，用于补偿
 
 /**
  * @brief 对功率进行缩放，参考西交利物浦的方案
@@ -225,13 +225,13 @@ static void LimitChassisOutput()
     }
 
     //根据缓冲能量和当前功率限制，计算最大功率值
-    chassis_power_offset = -1*CHASSIS_POWER_COFFICIENT*(chassis_power_limit-45) - 15 ;
+    chassis_power_offset = -1*CHASSIS_POWER_COFFICIENT*(chassis_power_limit) - 10 ;
 
     chassis_power_max = chassis_power_limit + chassis_power_offset;
 
     if(isLowBuffer)
     {
-        chassis_power_max = chassis_power_max - 15;
+        chassis_power_max = chassis_power_max - 25;
         if(chassis_power_buffer >=55.0f)
         {
             isLowBuffer=false;
@@ -243,7 +243,7 @@ static void LimitChassisOutput()
         if(chassis_power_buffer < 10.0f)
         {
             isLowBuffer=true;
-            chassis_power_max = chassis_power_max - 15;
+            chassis_power_max = chassis_power_max - 35;
         }
     }
 
@@ -320,7 +320,7 @@ void ChassisTask()
 #ifdef CHASSIS_BOARD
     chassis_cmd_recv = *(Chassis_Ctrl_Cmd_s *)CANCommGet(chasiss_can_comm);
 #endif // CHASSIS_BOARD
-
+    
     if (chassis_cmd_recv.chassis_mode == CHASSIS_ZERO_FORCE)
     { // 如果出现重要模块离线或遥控器设置为急停,让电机停止
         DJIMotorStop(motor_lf);
@@ -387,6 +387,8 @@ void ChassisTask()
     // // 当前只做了17mm热量的数据获取,后续根据robot_def中的宏切换双枪管和英雄42mm的情况
     // chassis_feedback_data.bullet_speed = referee_data->GameRobotState.shooter_id1_17mm_speed_limit;
     // chassis_feedback_data.rest_heat = referee_data->PowerHeatData.shooter_heat0;
+
+    chassis_feedback_data.real_level=referee_data->GameRobotState.robot_level;
 
     // UI数据
     ui_data.chassis_mode = chassis_cmd_recv.chassis_mode;

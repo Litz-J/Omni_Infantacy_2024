@@ -284,6 +284,29 @@ float chassis_speed_mouse=18000;//十级10000
  */
 static void MouseKeySet()
 {
+    uint8_t level=chassis_fetch_data.real_level;
+    switch(level)
+    {
+        default:
+        case 1:
+        case 2:
+        case 3:
+            chassis_speed_mouse=5000;
+            break;
+        case 4:
+        case 5:
+        case 6:
+            chassis_speed_mouse=7500;
+            break;
+        case 7:
+        case 8:
+            chassis_speed_mouse=10000;
+            break;
+        case 9:
+        case 10:
+            chassis_speed_mouse=11000;
+            break;
+    }
     chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w *  chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].s * chassis_speed_mouse; // 系数待测
     chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].d * chassis_speed_mouse;
 
@@ -343,7 +366,7 @@ static void MouseKeySet()
     }
     else if(rc_data[TEMP].mouse.press_r==1)
     {
-        shoot_cmd_send.shoot_rate=12;
+        shoot_cmd_send.shoot_rate=10;
         chassis_cmd_send.shoot_mode = SHOOT_ON;
     }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 2)  //Q设置底盘模式
@@ -457,22 +480,33 @@ static void MouseKeySet()
             break;
         default:
             chassis_cmd_send.wz = 3500.0f + 500.0f * float_constrain(sin(DWT_GetTimeline_s()*3.14*0.85)*sin(DWT_GetTimeline_s()*3.14*0.375),-0.45,0.675);
-            //chassis_cmd_send.wz = 3500.0f;
+            chassis_cmd_send.wz = 3500.0f;
             break;
         
     }
 
 }
-
+float v;
+float reduction;
 //对速度进行处理，包括归一化、小陀螺速度重新分配等
 static void SpeedDistribution()
 {
+    v=Sqrt(float_Square(chassis_cmd_send.vx)+float_Square(chassis_cmd_send.vy));
+    if(v!=0)
+    {
+        reduction=chassis_speed_mouse/v;
+        if(reduction<=1)
+        {
+            chassis_cmd_send.vx*=reduction;
+            chassis_cmd_send.vy*=reduction;
+        }
+    }
     
     //移动时小陀螺减速
     if(chassis_cmd_send.vx!=0||chassis_cmd_send.vy!=0)
     {
-        if(chassis_cmd_send.wz>4000.0f&&chassis_cmd_send.chassis_mode == CHASSIS_ROTATE)
-            chassis_cmd_send.wz *=0.75f;
+        if(chassis_cmd_send.wz>3000.0f&&chassis_cmd_send.chassis_mode == CHASSIS_ROTATE)
+            chassis_cmd_send.wz *=0.65f;
     }    
 }
 
