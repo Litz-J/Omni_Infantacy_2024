@@ -53,6 +53,7 @@ static DJIMotorInstance *chassis_motor_instance[4];
 
 /* 用于自旋变速策略的时间变量 */
 // static float t;
+float wz_LPF_RC=0.35;
 
 /* 私有函数计算的中介变量,设为静态避免参数传递的开销 */
 static float chassis_vx, chassis_vy;     // 将云台系的速度投影到底盘
@@ -66,8 +67,8 @@ void ChassisInit()
         .can_init_config.can_handle = &hcan1,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp = 0.85,    // 4.5
-                .Ki = 0.08,  // 0
+                .Kp = 0.85,   // 4.5
+                .Ki = 0.08,   // 0
                 .Kd = 0.0002, // 0
                 .IntegralLimit = 2000,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
@@ -82,14 +83,10 @@ void ChassisInit()
                 .MaxOut = 15000,
             },
         },
-        .controller_setting_init_config = {
-            .angle_feedback_source = MOTOR_FEED,
-            .speed_feedback_source = MOTOR_FEED,
-            .outer_loop_type = SPEED_LOOP,
-            //.close_loop_type = SPEED_LOOP | CURRENT_LOOP,
-            .close_loop_type = SPEED_LOOP,
-            .power_limit_flag=POWER_LIMIT_ON
-        },
+        .controller_setting_init_config = {.angle_feedback_source = MOTOR_FEED, .speed_feedback_source = MOTOR_FEED, .outer_loop_type = SPEED_LOOP,
+                                           //.close_loop_type = SPEED_LOOP | CURRENT_LOOP,
+                                           .close_loop_type = SPEED_LOOP,
+                                           .power_limit_flag = POWER_LIMIT_ON},
         .motor_type = M3508,
     };
     //  @todo: 当前还没有设置电机的正反转,仍然需要手动添加reference的正负号,需要电机module的支持,待修改.
@@ -168,13 +165,51 @@ static void MecanumCalculate()
 /**
  * @brief 全向轮：计算每个轮毂电机的输出,正运动学解算
  *        用宏进行预替换减小开销,运动解算具体过程参考教程
+ *        先正交分解计算出临时变量，再应用到底盘上，最后缩放速度
+ *        注意正走（四个轮发力）和斜着走（两轮发力）是不同的
  */
 static void OmnidirectionalCalculate()
 {
-    vt_lf = -chassis_vx * COSECANT45 - chassis_vy * SECANT45 - chassis_cmd_recv.wz * LF_CENTER;
-    vt_rf = -chassis_vx * COSECANT45 + chassis_vy * SECANT45 - chassis_cmd_recv.wz * RF_CENTER;
-    vt_lb = chassis_vx * COSECANT45 - chassis_vy * SECANT45 - chassis_cmd_recv.wz * LB_CENTER;
-    vt_rb = chassis_vx * COSECANT45 + chassis_vy * SECANT45 - chassis_cmd_recv.wz * RB_CENTER;
+    // static float v1,v2,length_past,length_now;
+    // static float k; //旋转后的缩放系数
+
+    // static float k_v1,k_v2; //缩放后的速度
+
+    // length_past=Sqrt(float_Square(chassis_vx)+float_Square(chassis_vy));
+
+    // v1=chassis_vx*COSECANT45+chassis_vy*SECANT45;
+    // v2=chassis_vx*SECANT45-chassis_vy*COSECANT45;
+    // length_now=Sqrt(float_Square(v1)+float_Square(v2));
+
+    // k=(length_now!=0)?(length_past/length_now) : 0;
+
+    // k_v1=v1*k;
+    // k_v2=v2*k;
+
+    // switch (chassis_cmd_recv.chassis_mode)
+    // {
+    // case CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL:
+    //     vt_lf = -chassis_vx - chassis_cmd_recv.wz * LF_CENTER;
+    //     vt_rf = chassis_vy - chassis_cmd_recv.wz * RF_CENTER;
+    //     vt_lb = -chassis_vy - chassis_cmd_recv.wz * LB_CENTER;
+    //     vt_rb = chassis_vx - chassis_cmd_recv.wz * RB_CENTER;
+    //     break;
+    // default:
+    // case CHASSIS_FOLLOW_GIMBAL_YAW:
+    //     vt_lf = -chassis_vx * COSINE45 - chassis_vy * SINE45 - chassis_cmd_recv.wz * LF_CENTER;
+    //     vt_rf = -chassis_vx * COSECANT45 + chassis_vy * SECANT45 - chassis_cmd_recv.wz * RF_CENTER;
+    //     vt_lb = chassis_vx * COSECANT45 - chassis_vy * SECANT45 - chassis_cmd_recv.wz * LB_CENTER;
+    //     vt_rb = chassis_vx * COSECANT45 + chassis_vy * SECANT45 - chassis_cmd_recv.wz * RB_CENTER;
+    //     break;
+    // }
+    // vt_lf = -k_v1 - chassis_cmd_recv.wz * LF_CENTER;
+    // vt_rf = -k_v2 - chassis_cmd_recv.wz * RF_CENTER;
+    // vt_lb =  k_v2 - chassis_cmd_recv.wz * LB_CENTER;
+    // vt_rb =  k_v1 - chassis_cmd_recv.wz * RB_CENTER;
+    vt_lf =(-chassis_vx-chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * LF_CENTER;
+    vt_rf =(-chassis_vx+chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * RF_CENTER;
+    vt_lb =(chassis_vx-chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * LB_CENTER;
+    vt_rb =(chassis_vx+chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * RB_CENTER;
 }
 
 /**
@@ -200,12 +235,12 @@ float chassis_power_offset = -5; // 冗余
 
 float toque_coefficient = 1.99688994e-6f; // (20/16384)*(0.3)*(187/3591)/9.55
 float k1 = 1.26e-07;                      // k1，9.50000043e-08
-float k2 = 1.95000013e-07;                     // k2
+float k2 = 1.95000013e-07;                // k2
 float constant_coefficient = 3.5f;
 
-bool isLowBuffer=false;
+bool isLowBuffer = false;
 
-#define CHASSIS_POWER_COFFICIENT (1-(float)(120-45)/(float)(135-50))    //这个量出现是因为我们的电机阻力较大，导致理论值和实际值相差较大，用于补偿
+#define CHASSIS_POWER_COFFICIENT (1 - (float)(120 - 45) / (float)(135 - 50)) // 这个量出现是因为我们的电机阻力较大，导致理论值和实际值相差较大，用于补偿
 
 /**
  * @brief 对功率进行缩放，参考西交利物浦的方案
@@ -214,35 +249,35 @@ bool isLowBuffer=false;
 static void LimitChassisOutput()
 {
     chassis_pid_totaloutput = 0;
-    chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;//从裁判系统获取的能量限制
+    chassis_power_limit = referee_data->GameRobotState.chassis_power_limit; // 从裁判系统获取的能量限制
 
     chassis_input_power = referee_data->PowerHeatData.chassis_power;
     chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
-    
-    if(chassis_power_limit>=100)
+
+    if (chassis_power_limit >= 100)
     {
-        chassis_power_limit=100;
+        chassis_power_limit = 100;
     }
 
-    //根据缓冲能量和当前功率限制，计算最大功率值
-    chassis_power_offset = -1*CHASSIS_POWER_COFFICIENT*(chassis_power_limit) - 0 ;
+    // 根据缓冲能量和当前功率限制，计算最大功率值
+    chassis_power_offset = -1 * CHASSIS_POWER_COFFICIENT * (chassis_power_limit)-0;
 
     chassis_power_max = chassis_power_limit + chassis_power_offset;
 
-    if(isLowBuffer)
+    if (isLowBuffer)
     {
         chassis_power_max = chassis_power_max - 25;
-        if(chassis_power_buffer >=55.0f)
+        if (chassis_power_buffer >= 55.0f)
         {
-            isLowBuffer=false;
+            isLowBuffer = false;
         }
     }
     else
     {
-        //缓冲能量判断，如果缓冲能量少，则马上减小功率，减少量待测
-        if(chassis_power_buffer < 10.0f)
+        // 缓冲能量判断，如果缓冲能量少，则马上减小功率，减少量待测
+        if (chassis_power_buffer < 10.0f)
         {
-            isLowBuffer=true;
+            isLowBuffer = true;
             chassis_power_max = chassis_power_max - 35;
         }
     }
@@ -277,15 +312,15 @@ static void LimitChassisOutput()
             float c = k2 * float_Square(chassis_motor_instance[i]->measure.speed_rpm) - chassis_pid_output[i] + constant_coefficient;
             // k2 * chassis_power_control->motor_chassis[i].chassis_motor_measure->speed_rpm * chassis_power_control->motor_chassis[i].chassis_motor_measure->speed_rpm - scaled_give_power[i] + constant;
 
-            if (chassis_motor_instance[i]->motor_controller.pid_output > 0) 
+            if (chassis_motor_instance[i]->motor_controller.pid_output > 0)
             {
                 float temp = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp,13000));
+                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp, 13000));
             }
             else
             {
                 float temp = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
-                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp,13000));
+                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp, 13000));
             }
         }
     }
@@ -309,6 +344,8 @@ static void EstimateSpeed()
     //  ...
 }
 
+
+
 /* 机器人底盘控制核心任务 */
 void ChassisTask()
 {
@@ -320,7 +357,7 @@ void ChassisTask()
 #ifdef CHASSIS_BOARD
     chassis_cmd_recv = *(Chassis_Ctrl_Cmd_s *)CANCommGet(chasiss_can_comm);
 #endif // CHASSIS_BOARD
-    
+
     if (chassis_cmd_recv.chassis_mode == CHASSIS_ZERO_FORCE)
     { // 如果出现重要模块离线或遥控器设置为急停,让电机停止
         DJIMotorStop(motor_lf);
@@ -339,6 +376,11 @@ void ChassisTask()
     static float sin_theta, cos_theta;
     cos_theta = arm_cos_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
     sin_theta = arm_sin_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
+    
+    static uint32_t dt_feet_cnt=0;
+    
+    static float last_wz=0;
+    float wz_dt = DWT_GetDeltaT(&dt_feet_cnt);
 
     // 根据控制模式设定旋转速度
     switch (chassis_cmd_recv.chassis_mode)
@@ -347,17 +389,32 @@ void ChassisTask()
         chassis_cmd_recv.wz = 0;
         break;
     case CHASSIS_FOLLOW_GIMBAL_YAW: // 跟随云台,不单独设置pid,以误差角度平方为速度输出
-        
-        //增加角速度判别，如果先前有一定角速度（阈值需要测）（比如在小陀螺，那么就不要反向转回去，这样机动性会更好）
-        if(chassis_cmd_recv.offset_angle*chassis_feedback_data.real_wz<0&&fabs(chassis_feedback_data.real_wz)>=2500)
+
+        // 增加角速度判别，如果先前有一定角速度（阈值需要测）（比如在小陀螺，那么就不要反向转回去，这样机动性会更好）
+        if (chassis_cmd_recv.offset_angle * chassis_feedback_data.real_wz < 0 && fabs(chassis_feedback_data.real_wz) >= 2500)
         {
-            chassis_cmd_recv.offset_angle-=360;
+            chassis_cmd_recv.offset_angle -= 360;
         }
         chassis_cmd_recv.wz = -1.0f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
+    case CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL:
+
+        // 角度回中直接把offset加个45度即可
+        chassis_cmd_recv.offset_angle -= 45;
+
+        // 增加角速度判别，如果先前有一定角速度（阈值需要测）（比如在小陀螺，那么就不要反向转回去，这样机动性会更好）
+        if (chassis_cmd_recv.offset_angle * chassis_feedback_data.real_wz < 0 && fabs(chassis_feedback_data.real_wz) >= 2500)
+        {
+            chassis_cmd_recv.offset_angle -= 360;
+        }
+        chassis_cmd_recv.wz = -1.15f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        break;
+
     case CHASSIS_ROTATE: // 自旋,同时保持全向机动;当前wz维持定值,后续增加不规则的变速策略
-        // chassis_cmd_recv.wz = rotationspeed;
-        // 在robot_cmd里更改自旋速度，不在这里设置旋转
+        chassis_cmd_recv.wz = chassis_cmd_recv.wz * wz_dt / (wz_LPF_RC + wz_dt) +
+                  last_wz * wz_LPF_RC / (wz_LPF_RC + wz_dt);
+
+        // 在robot_cmd里更改自旋速度，不在这里设置旋转，这里只做滤波
         break;
     case CHASSIS_NO_DIRECTION:
         chassis_cmd_recv.wz = 0;
@@ -367,6 +424,8 @@ void ChassisTask()
     default:
         break;
     }
+
+    last_wz=chassis_cmd_recv.wz;
 
     // 根据云台和底盘的角度offset将控制量映射到底盘坐标系上
     // 底盘逆时针旋转为角度正方向;云台命令的方向以云台指向的方向为x,采用右手系(x指向正北时y在正东)
@@ -394,8 +453,8 @@ void ChassisTask()
     // chassis_feedback_data.bullet_speed = referee_data->GameRobotState.shooter_id1_17mm_speed_limit;
     // chassis_feedback_data.rest_heat = referee_data->PowerHeatData.shooter_heat0;
 
-    chassis_feedback_data.real_level=referee_data->GameRobotState.robot_level;
-    chassis_feedback_data.chassis_power_limit=referee_data->GameRobotState.chassis_power_limit;
+    chassis_feedback_data.real_level = referee_data->GameRobotState.robot_level;
+    chassis_feedback_data.chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
 
     // UI数据
     ui_data.chassis_mode = chassis_cmd_recv.chassis_mode;

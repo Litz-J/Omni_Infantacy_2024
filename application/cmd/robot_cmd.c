@@ -198,7 +198,8 @@ static void RemoteControlSet()
     }
     else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[中],底盘和云台分离,底盘保持不转动
     {
-        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+        //chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+        chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL;
         gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
         shoot_cmd_send.friction_mode = FRICTION_OFF;
         shoot_cmd_send.load_mode=LOAD_STOP;
@@ -416,14 +417,14 @@ static void MouseKeySet()
         shoot_cmd_send.shoot_rate=10;
         chassis_cmd_send.shoot_mode = SHOOT_ON;
     }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 2)  //Q设置底盘模式
+    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 3)  //Q设置底盘模式
     {
     case 0:
         chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
         break;
-    // case 1:
-    //     chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
-    //     break;
+    case 1:
+        chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL;
+        break;
     default:
         chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
         break;
