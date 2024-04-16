@@ -196,7 +196,6 @@ typedef struct
 {
 	float x;
 	float y;
-	float z;
 	float yaw;
 } ext_game_robot_pos_t;
 

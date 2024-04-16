@@ -179,6 +179,8 @@ static void CalcOffsetAngle()
 #endif
 }
 
+float chassis_speed_rocker=0;//十级10000
+
 /**
  * @brief 控制输入为遥控器(调试时)的模式和控制量设置
  *
@@ -246,9 +248,11 @@ static void RemoteControlSet()
         gimbal_cmd_send.pitch=PITCH_MIN_ANGLE;
     }
 
+    chassis_speed_rocker=12000;
+
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
-    chassis_cmd_send.vx = 22.0f * (float)rc_data[TEMP].rc.rocker_r_; // _水平方向
-    chassis_cmd_send.vy = 22.0f * (float)rc_data[TEMP].rc.rocker_r1; // 竖直方向
+    chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r_/660.0f * chassis_speed_rocker; // _水平方向
+    chassis_cmd_send.vy = (float)rc_data[TEMP].rc.rocker_r1/660.0f * chassis_speed_rocker; // 竖直方向
 
     chassis_cmd_send.wz = 6000.0f;
     shoot_cmd_send.shoot_rate = 8;
@@ -276,7 +280,8 @@ static void RemoteShootSet()
     }
 }
 
-float chassis_speed_mouse=18000;//十级10000
+float chassis_speed_mouse=0;//十级10000
+float chassis_rotate_speed_mouse,chassis_fastrotate_speed_mouse;
 
 /**
  * @brief 输入为键鼠时模式和控制量设置
@@ -285,28 +290,70 @@ float chassis_speed_mouse=18000;//十级10000
 static void MouseKeySet()
 {
     uint8_t level=chassis_fetch_data.real_level;
-    switch(level)
+    uint16_t chassis_power_limit=chassis_fetch_data.chassis_power_limit;
+    
+    //默认值，防止过快
+    chassis_speed_mouse=5000;
+    chassis_rotate_speed_mouse=2000;
+    chassis_fastrotate_speed_mouse=2500;
+
+    //通过缓冲能量设定最大速度，都是待测
+    if(chassis_power_limit>=40)
     {
-        default:
-        case 1:
-        case 2:
-        case 3:
-            chassis_speed_mouse=5000;
-            break;
-        case 4:
-        case 5:
-        case 6:
-            chassis_speed_mouse=7500;
-            break;
-        case 7:
-        case 8:
-            chassis_speed_mouse=10000;
-            break;
-        case 9:
-        case 10:
-            chassis_speed_mouse=11000;
-            break;
+        chassis_speed_mouse=7000;
+        chassis_rotate_speed_mouse=2500;
+        chassis_fastrotate_speed_mouse=3500;
     }
+    if(chassis_power_limit>=60)
+    {
+        chassis_speed_mouse=8000;
+        chassis_rotate_speed_mouse=3500;
+        chassis_fastrotate_speed_mouse=4500;
+    }
+        if(chassis_power_limit>=70)
+    {
+        chassis_speed_mouse=9500;
+        chassis_rotate_speed_mouse=3500;
+        chassis_fastrotate_speed_mouse=4500;
+    }
+    if(chassis_power_limit>=90)
+    {
+        chassis_speed_mouse=11000;
+        chassis_rotate_speed_mouse=4500;
+        chassis_fastrotate_speed_mouse=6000;
+    }
+    if(chassis_power_limit>=100)
+    {
+        chassis_speed_mouse=13000;
+        chassis_rotate_speed_mouse=5000;
+        chassis_fastrotate_speed_mouse=8500;
+    }
+    
+
+
+
+    // switch(level)
+    // {
+    //     default:
+    //     case 1:
+    //     case 2:
+    //     case 3:
+    //         chassis_speed_mouse=5000;
+    //         break;
+    //     case 4:
+    //     case 5:
+    //     case 6:
+    //         chassis_speed_mouse=7500;
+    //         break;
+    //     case 7:
+    //     case 8:
+    //         chassis_speed_mouse=10000;
+    //         break;
+    //     case 9:
+    //     case 10:
+    //         chassis_speed_mouse=11000;
+    //         break;
+    // }
     chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w *  chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].s * chassis_speed_mouse; // 系数待测
     chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].d * chassis_speed_mouse;
 
@@ -476,11 +523,11 @@ static void MouseKeySet()
     switch (rc_data[TEMP].key[KEY_PRESS].v) // 按下V小陀螺加速
     {
         case 1:
-            chassis_cmd_send.wz = 6000.0f;
+            chassis_cmd_send.wz = chassis_fastrotate_speed_mouse;
             break;
         default:
-            chassis_cmd_send.wz = 3500.0f + 500.0f * float_constrain(sin(DWT_GetTimeline_s()*3.14*0.85)*sin(DWT_GetTimeline_s()*3.14*0.375),-0.45,0.675);
-            chassis_cmd_send.wz = 3500.0f;
+            //chassis_cmd_send.wz = 3500.0f + 500.0f * float_constrain(sin(DWT_GetTimeline_s()*3.14*0.85)*sin(DWT_GetTimeline_s()*3.14*0.375),-0.45,0.675);
+            chassis_cmd_send.wz = chassis_rotate_speed_mouse;
             break;
         
     }
@@ -494,7 +541,7 @@ static void SpeedDistribution()
     v=Sqrt(float_Square(chassis_cmd_send.vx)+float_Square(chassis_cmd_send.vy));
     if(v!=0)
     {
-        reduction=chassis_speed_mouse/v;
+        reduction=(chassis_speed_mouse+chassis_speed_rocker)/v;
         if(reduction<=1)
         {
             chassis_cmd_send.vx*=reduction;
@@ -505,8 +552,8 @@ static void SpeedDistribution()
     //移动时小陀螺减速
     if(chassis_cmd_send.vx!=0||chassis_cmd_send.vy!=0)
     {
-        if(chassis_cmd_send.wz>3000.0f&&chassis_cmd_send.chassis_mode == CHASSIS_ROTATE)
-            chassis_cmd_send.wz *=0.65f;
+        if(chassis_cmd_send.chassis_mode == CHASSIS_ROTATE)
+            chassis_cmd_send.wz *=0.625f;
     }    
 }
 
@@ -555,13 +602,24 @@ void RobotCMDTask()
 
     // 根据gimbal的反馈值计算云台和底盘正方向的夹角,不需要传参,通过static私有变量完成
     CalcOffsetAngle();
+
+    //清零计数，因为二者只能有一个不为0，用于速度缩放，后续修改方法
+    chassis_speed_mouse=0;
+    chassis_speed_rocker=0;
+
     // 根据遥控器左侧开关,确定当前使用的控制模式为遥控器调试还是键鼠
     if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
+    {
         RemoteControlSet();
+    }
     else if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
+    {
         MouseKeySet();
+    }
     else if(switch_is_mid(rc_data[TEMP].rc.switch_left))
+    {
         RemoteShootSet();
+    }
 
     SpeedDistribution();
 

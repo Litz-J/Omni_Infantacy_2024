@@ -119,7 +119,7 @@ __attribute__((noreturn)) void StartROBOTTASK(void const *argument)
         robot_start = DWT_GetTimeline_ms();
         RobotTask();
         robot_dt = DWT_GetTimeline_ms() - robot_start;
-        if (robot_dt > 5)
+        if (robot_dt > 2)
             LOGERROR("[freeRTOS] ROBOT core Task is being DELAY! dt = [%f]", &robot_dt);
         osDelay(2);
     }

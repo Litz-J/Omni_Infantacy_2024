@@ -66,7 +66,7 @@ void ChassisInit()
         .can_init_config.can_handle = &hcan1,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp = 0.8,    // 4.5
+                .Kp = 0.85,    // 4.5
                 .Ki = 0.08,  // 0
                 .Kd = 0.0002, // 0
                 .IntegralLimit = 2000,
@@ -200,8 +200,8 @@ float chassis_power_offset = -5; // 冗余
 
 float toque_coefficient = 1.99688994e-6f; // (20/16384)*(0.3)*(187/3591)/9.55
 float k1 = 1.26e-07;                      // k1，9.50000043e-08
-float k2 = 3.95000013e-07;                     // k2
-float constant_coefficient = 4.081f;
+float k2 = 1.95000013e-07;                     // k2
+float constant_coefficient = 3.5f;
 
 bool isLowBuffer=false;
 
@@ -225,7 +225,7 @@ static void LimitChassisOutput()
     }
 
     //根据缓冲能量和当前功率限制，计算最大功率值
-    chassis_power_offset = -1*CHASSIS_POWER_COFFICIENT*(chassis_power_limit) - 10 ;
+    chassis_power_offset = -1*CHASSIS_POWER_COFFICIENT*(chassis_power_limit) - 0 ;
 
     chassis_power_max = chassis_power_limit + chassis_power_offset;
 
@@ -347,7 +347,13 @@ void ChassisTask()
         chassis_cmd_recv.wz = 0;
         break;
     case CHASSIS_FOLLOW_GIMBAL_YAW: // 跟随云台,不单独设置pid,以误差角度平方为速度输出
-        chassis_cmd_recv.wz = -1.5f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        
+        //增加角速度判别，如果先前有一定角速度（阈值需要测）（比如在小陀螺，那么就不要反向转回去，这样机动性会更好）
+        if(chassis_cmd_recv.offset_angle*chassis_feedback_data.real_wz<0&&fabs(chassis_feedback_data.real_wz)>=2500)
+        {
+            chassis_cmd_recv.offset_angle-=360;
+        }
+        chassis_cmd_recv.wz = -1.0f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
     case CHASSIS_ROTATE: // 自旋,同时保持全向机动;当前wz维持定值,后续增加不规则的变速策略
         // chassis_cmd_recv.wz = rotationspeed;
@@ -389,6 +395,7 @@ void ChassisTask()
     // chassis_feedback_data.rest_heat = referee_data->PowerHeatData.shooter_heat0;
 
     chassis_feedback_data.real_level=referee_data->GameRobotState.robot_level;
+    chassis_feedback_data.chassis_power_limit=referee_data->GameRobotState.chassis_power_limit;
 
     // UI数据
     ui_data.chassis_mode = chassis_cmd_recv.chassis_mode;
