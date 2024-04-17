@@ -4,6 +4,7 @@
 #include "bsp_usart.h"
 #include "seasky_protocol.h"
 
+
 #define VISION_RECV_SIZE 10u // 当前为固定值,36字节
 #define VISION_SEND_SIZE 36u
 
@@ -37,12 +38,20 @@ typedef enum
 
 typedef struct
 {
+	
 	Fire_Mode_e fire_mode;
 	Target_State_e target_state;
 	Target_Type_e target_type;
 
 	float pitch;
 	float yaw;
+
+	struct 
+	{
+		float vx;
+		float vy;
+		float wz;
+	} move;
 } Vision_Recv_s;
 
 typedef enum

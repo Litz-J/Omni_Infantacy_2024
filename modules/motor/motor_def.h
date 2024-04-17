@@ -66,7 +66,7 @@ typedef enum
 /* 是否使用功率限制标志，如底盘。如果是则将使用外部的pid_output进行输出限幅*/
 typedef enum
 {
-    POWET_LIMIT_OFF = 0,
+    POWER_LIMIT_OFF = 0,
     POWER_LIMIT_ON = 1
 } Power_Limit_Flag_e;
 typedef enum

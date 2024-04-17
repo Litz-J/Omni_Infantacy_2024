@@ -86,7 +86,7 @@ void ChassisInit()
         .controller_setting_init_config = {.angle_feedback_source = MOTOR_FEED, .speed_feedback_source = MOTOR_FEED, .outer_loop_type = SPEED_LOOP,
                                            //.close_loop_type = SPEED_LOOP | CURRENT_LOOP,
                                            .close_loop_type = SPEED_LOOP,
-                                           .power_limit_flag = POWER_LIMIT_ON},
+                                           .power_limit_flag = POWER_LIMIT_OFF},
         .motor_type = M3508,
     };
     //  @todo: 当前还没有设置电机的正反转,仍然需要手动添加reference的正负号,需要电机module的支持,待修改.
@@ -417,7 +417,7 @@ void ChassisTask()
         // 在robot_cmd里更改自旋速度，不在这里设置旋转，这里只做滤波
         break;
     case CHASSIS_NO_DIRECTION:
-        chassis_cmd_recv.wz = 0;
+        //chassis_cmd_recv.wz = 0;
         cos_theta = 1;
         sin_theta = 0;
         break;
@@ -434,14 +434,14 @@ void ChassisTask()
     chassis_vy = chassis_cmd_recv.vx * sin_theta + chassis_cmd_recv.vy * cos_theta;
 
     // 根据控制模式进行正运动学解算,计算底盘输出
-    // MecanumCalculate();
-    OmnidirectionalCalculate();
+     MecanumCalculate();
+    //OmnidirectionalCalculate();
 
     // 设定底盘闭环参考值
     ChassisSetRef();
 
     // 底盘功率限制
-    LimitChassisOutput();
+    //LimitChassisOutput();
 
     // 根据电机的反馈速度和IMU(如果有)计算真实速度
     EstimateSpeed();

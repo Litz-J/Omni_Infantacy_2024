@@ -102,8 +102,8 @@ void GimbalInit()
         .motor_type = GM6020,
     };
     // 电机对total_angle闭环,上电时为零,会保持静止,收到遥控器数据再动
-    yaw_motor = DJIMotorInit(&yaw_config);
-    pitch_motor = DJIMotorInit(&pitch_config);
+    //yaw_motor = DJIMotorInit(&yaw_config);
+    //pitch_motor = DJIMotorInit(&pitch_config);
 
     Servo_Init_Config_s servo_config=
     {
