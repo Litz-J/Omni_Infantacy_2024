@@ -52,6 +52,7 @@ typedef struct
 		float vy;
 		float wz;
 	} move;
+
 } Vision_Recv_s;
 
 typedef enum

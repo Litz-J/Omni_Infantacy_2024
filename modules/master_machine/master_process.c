@@ -99,9 +99,9 @@ static void DecodeVision()
             // }
             if(vision_usart_instance->recv_buff[0]== 0xAE &&vision_usart_instance->recv_buff[1]== 0xAE &&vision_usart_instance->recv_buff[8]== 0xEA &&vision_usart_instance->recv_buff[9]== 0xEA )
             {
-                recv_data.move.vx=(float)(vision_usart_instance->recv_buff[3]<<8|vision_usart_instance->recv_buff[2]);
-                recv_data.move.vy=(float)(vision_usart_instance->recv_buff[5]<<8|vision_usart_instance->recv_buff[4]);
-                recv_data.move.wz=(float)(vision_usart_instance->recv_buff[7]<<8|vision_usart_instance->recv_buff[6]);
+                recv_data.move.vx=(int16_t)(vision_usart_instance->recv_buff[3]<<8|vision_usart_instance->recv_buff[2]);
+                recv_data.move.vy=(int16_t)(vision_usart_instance->recv_buff[5]<<8|vision_usart_instance->recv_buff[4]);
+                recv_data.move.wz=(int16_t)(vision_usart_instance->recv_buff[7]<<8|vision_usart_instance->recv_buff[6]);
             }
             
     }
