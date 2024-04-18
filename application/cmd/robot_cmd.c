@@ -252,17 +252,21 @@ static void RemoteControlSet()
     chassis_speed_rocker=12000;
 
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
-    chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r_/660.0f * chassis_speed_rocker; // _水平方向
-    chassis_cmd_send.vy = (float)rc_data[TEMP].rc.rocker_r1/660.0f * chassis_speed_rocker; // 竖直方向
+    chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r_/660.0f *360.0f/(2*PI*RADIUS_WHEEL/1000.0f)*REDUCTION_RATIO_WHEEL; // _水平方向
+    chassis_cmd_send.vy = (float)rc_data[TEMP].rc.rocker_r1/660.0f *360.0f/(2*PI*RADIUS_WHEEL/1000.0f)*REDUCTION_RATIO_WHEEL; // 竖直方向
 
-    chassis_cmd_send.wz = (float)rc_data[TEMP].rc.rocker_l_/660.0f * 1500;
+    chassis_cmd_send.wz = (float)rc_data[TEMP].rc.rocker_l_/660.0f * 2500;
     shoot_cmd_send.shoot_rate = 8;
 }
 
 static void RemoteShootSet()
 {
-    chassis_cmd_send.vx=vision_recv_data->move.vx;
-    chassis_cmd_send.vy=vision_recv_data->move.vy;
+    //vision_recv_data->move.vy*
+    chassis_speed_rocker=12000;
+    chassis_cmd_send.vx=vision_recv_data->move.vy*360.0f/(2*PI*RADIUS_WHEEL/1000.0f)*REDUCTION_RATIO_WHEEL;
+    chassis_cmd_send.vy=vision_recv_data->move.vy*360.0f/(2*PI*RADIUS_WHEEL/1000.0f)*REDUCTION_RATIO_WHEEL;
+
+
     chassis_cmd_send.wz=vision_recv_data->move.wz;
     shoot_cmd_send.shoot_rate = 4;
     chassis_cmd_send.chassis_mode = CHASSIS_NO_DIRECTION;
@@ -625,7 +629,7 @@ void RobotCMDTask()
         RemoteShootSet();
     }
 
-    SpeedDistribution();
+    //SpeedDistribution();
 
     EmergencyHandler(); // 处理模块离线和遥控器急停等紧急情况
 

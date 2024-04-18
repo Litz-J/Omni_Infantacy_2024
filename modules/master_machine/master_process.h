@@ -5,7 +5,7 @@
 #include "seasky_protocol.h"
 
 
-#define VISION_RECV_SIZE 10u // 当前为固定值,36字节
+#define VISION_RECV_SIZE 20u // 当前为固定值,36字节
 #define VISION_SEND_SIZE 36u
 
 #pragma pack(1)

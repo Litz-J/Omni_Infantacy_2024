@@ -57,6 +57,24 @@ static void VisionOfflineCallback(void *id)
 
 #include "bsp_usart.h"
 
+#pragma pack(1)
+
+typedef union
+{
+    struct 
+    {
+        uint8_t pack_head[2];
+        float vx;
+        float vy;
+        float wz;
+        uint8_t pack_tail[2];
+    }data;
+    uint8_t buff[16];
+}master_message;
+
+master_message message;
+
+#pragma pack()
 
 /**
  * @brief 接收解包回调函数,将在bsp_usart.c中被usart rx callback调用
@@ -99,9 +117,10 @@ static void DecodeVision()
             // }
             if(vision_usart_instance->recv_buff[0]== 0xAE &&vision_usart_instance->recv_buff[1]== 0xAE &&vision_usart_instance->recv_buff[8]== 0xEA &&vision_usart_instance->recv_buff[9]== 0xEA )
             {
-                recv_data.move.vx=(int16_t)(vision_usart_instance->recv_buff[3]<<8|vision_usart_instance->recv_buff[2]);
-                recv_data.move.vy=(int16_t)(vision_usart_instance->recv_buff[5]<<8|vision_usart_instance->recv_buff[4]);
-                recv_data.move.wz=(int16_t)(vision_usart_instance->recv_buff[7]<<8|vision_usart_instance->recv_buff[6]);
+                memcpy(message.buff, vision_usart_instance->recv_buff, 16);
+                recv_data.move.vx=message.data.vx;
+                recv_data.move.vy=message.data.vy;
+                recv_data.move.wz=message.data.wz;
             }
             
     }
