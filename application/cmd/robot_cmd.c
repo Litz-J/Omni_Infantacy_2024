@@ -229,14 +229,14 @@ static void RemoteControlSet()
     // 云台参数,确定云台控制数据
     if (switch_is_mid(rc_data[TEMP].rc.switch_left)) // 左侧开关状态为[中],视觉模式
     {
-        gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_+pid_yaw_vision->Output;
-        gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1-pid_pitch_vision->Output;
+        gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_;
+        gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1;
     }
     // 左侧开关状态为[下],或视觉未识别到目标,纯遥控器拨杆控制
     if (switch_is_down(rc_data[TEMP].rc.switch_left) || vision_recv_data->target_state == NO_TARGET)
     { // 按照摇杆的输出大小进行角度增量,增益系数需调整
-        gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_-pid_yaw_vision->Output;
-        gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1-pid_pitch_vision->Output;
+        gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_;
+        gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1;
     }
 
     // 云台软件限位
@@ -259,24 +259,63 @@ static void RemoteControlSet()
     shoot_cmd_send.shoot_rate = 8;
 }
 
+
 static void RemoteShootSet()
 {
+    static float last_yaw;
+    static float yaw_offset;
+    chassis_speed_rocker=12000;//用于速度缩放的历史遗留问题
+
     shoot_cmd_send.shoot_rate = 4;
-    chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
-        gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+    
+
+    
+    
+    if(vision_recv_data->is_controled_by_vision)
+    {
+        chassis_cmd_send.wz=4000;
+
+        chassis_cmd_send.chassis_mode = (chassis_mode_e)vision_recv_data->chassis_mode;
+        chassis_cmd_send.vx=vision_recv_data->move.vx;
+        chassis_cmd_send.vy=vision_recv_data->move.vy;
+        
+        gimbal_cmd_send.yaw=-vision_recv_data->yaw+yaw_offset+last_yaw;
+    }
+    else
+    {
+        chassis_cmd_send.vx=0;
+        chassis_cmd_send.vy=0;
+
+        last_yaw=gimbal_cmd_send.yaw;
+        yaw_offset=vision_recv_data->yaw;
+    }
+
+
+        // 云台软件限位
+    if(gimbal_cmd_send.pitch>=PITCH_MAX_ANGLE)
+    {
+        gimbal_cmd_send.pitch=PITCH_MAX_ANGLE;
+    }
+    else if(gimbal_cmd_send.pitch<=PITCH_MIN_ANGLE)
+    {
+        gimbal_cmd_send.pitch=PITCH_MIN_ANGLE;
+    }
+
+    gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+    shoot_cmd_send.friction_mode = FRICTION_OFF;
+    shoot_cmd_send.load_mode=LOAD_STOP;
+    gimbal_cmd_send.lid_mode=LID_CLOSE;
+
+    if (switch_is_mid(rc_data[TEMP].rc.switch_right)) 
+    {
         shoot_cmd_send.friction_mode = FRICTION_OFF;
         shoot_cmd_send.load_mode=LOAD_STOP;
         gimbal_cmd_send.lid_mode=LID_CLOSE;
-    if (switch_is_mid(rc_data[TEMP].rc.switch_right)) 
-    {
-        shoot_cmd_send.friction_mode = FRICTION_ON;
-        shoot_cmd_send.load_mode=LOAD_STOP;
-        gimbal_cmd_send.lid_mode=LID_OPEN;
     }
     if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],小陀螺
     {
-        shoot_cmd_send.friction_mode = FRICTION_ON;
-        shoot_cmd_send.load_mode=LOAD_BURSTFIRE;
+        shoot_cmd_send.friction_mode = FRICTION_OFF;
+        shoot_cmd_send.load_mode=LOAD_STOP;
         gimbal_cmd_send.lid_mode=LID_CLOSE;
     }
 }

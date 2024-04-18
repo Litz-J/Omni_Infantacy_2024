@@ -18,6 +18,8 @@ static Vision_Recv_s recv_data;
 static Vision_Send_s send_data;
 static DaemonInstance *vision_daemon_instance;
 
+static int master_is_lost=1;
+
 void VisionSetFlag(Enemy_Color_e enemy_color, Work_Mode_e work_mode, Bullet_Speed_e bullet_speed)
 {
     send_data.enemy_color = enemy_color;
@@ -42,8 +44,13 @@ static USARTInstance *vision_usart_instance;
  */
 static void VisionOfflineCallback(void *id)
 {
+    master_is_lost=1;
+    recv_data.chassis_mode=0;
     recv_data.yaw=0;
     recv_data.pitch=0;
+    recv_data.move.vx=0;
+    recv_data.move.vy=0;
+    recv_data.move.wz=0;
 #ifdef VISION_USE_UART
     USARTServiceInit(vision_usart_instance);
 #endif // !VISION_USE_UART
@@ -54,7 +61,20 @@ static void VisionOfflineCallback(void *id)
 
 #include "bsp_usart.h"
 
+#pragma pack(1)
+union 
+{
+    struct
+    {
+        int16_t vx,vy,wz;
+        float pitch,yaw;
+        uint8_t chassis_mode;
+        uint8_t reserve;
+    }data;
+    uint8_t buff[16];
+}datatoreceive;
 
+#pragma pack()
 /**
  * @brief 接收解包回调函数,将在bsp_usart.c中被usart rx callback调用
  * @todo  1.提高可读性,将get_protocol_info的第四个参数增加一个float类型buffer
@@ -94,7 +114,29 @@ static void DecodeVision()
             //     }
                 
             // }
-            
+            static float last_pitch,last_yaw;
+            if(vision_usart_instance->recv_buff[0]== 0xAE &&vision_usart_instance->recv_buff[1]== 0xAE &&vision_usart_instance->recv_buff[18]== 0xEA &&vision_usart_instance->recv_buff[19]== 0xEA )
+            {
+                if(master_is_lost)
+                {
+                    master_is_lost=0;
+                }
+                
+                memcpy(&datatoreceive.buff, &vision_usart_instance->recv_buff[2], 16);
+                // 解析数据
+                recv_data.move.vx=datatoreceive.data.vx;
+                recv_data.move.vy=datatoreceive.data.vy;
+                recv_data.move.wz=datatoreceive.data.wz;
+
+                recv_data.pitch=datatoreceive.data.pitch;
+                recv_data.yaw=datatoreceive.data.yaw;
+
+                recv_data.chassis_mode=0x03;
+
+                recv_data.is_controled_by_vision=!datatoreceive.data.chassis_mode;
+                //recv_data.chassis_mode=(uint8_t)vision_usart_instance->recv_buff[17];
+                
+            }
     }
     //get_protocol_info(vision_usart_instance->recv_buff, &flag_register, (uint8_t *)&recv_data.pitch);
     // TODO: code to resolve flag_register;
