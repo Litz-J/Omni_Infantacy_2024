@@ -66,12 +66,13 @@ union
 {
     struct
     {
+        uint8_t head[2];
         int16_t vx,vy,wz;
         float pitch,yaw;
-        uint8_t chassis_mode;
-        uint8_t reserve;
+        uint8_t key[4];
+        uint8_t tail[2];
     }data;
-    uint8_t buff[16];
+    uint8_t buff[22];
 }datatoreceive;
 
 #pragma pack()
@@ -115,14 +116,16 @@ static void DecodeVision()
                 
             // }
             static float last_pitch,last_yaw;
-            if(vision_usart_instance->recv_buff[0]== 0xAE &&vision_usart_instance->recv_buff[1]== 0xAE &&vision_usart_instance->recv_buff[18]== 0xEA &&vision_usart_instance->recv_buff[19]== 0xEA )
+            memcpy(datatoreceive.buff, vision_usart_instance->recv_buff, sizeof(datatoreceive.buff));
+
+            if(datatoreceive.data.head[0]== 0xAE &&datatoreceive.data.head[1]== 0xAE &&datatoreceive.data.tail[0]== 0xEA &&datatoreceive.data.tail[1]== 0xEA )
             {
                 if(master_is_lost)
                 {
                     master_is_lost=0;
                 }
-                
-                memcpy(&datatoreceive.buff, &vision_usart_instance->recv_buff[2], 16);
+
+                //memcpy(&datatoreceive.buff, &vision_usart_instance->recv_buff[2], 18);
                 // 解析数据
                 recv_data.move.vx=datatoreceive.data.vx;
                 recv_data.move.vy=datatoreceive.data.vy;
@@ -132,8 +135,14 @@ static void DecodeVision()
                 recv_data.yaw=datatoreceive.data.yaw;
 
                 recv_data.chassis_mode=0x03;
+                for(int i=0;i<4;i++)
+                {
+                    recv_data.key[i]=!datatoreceive.data.key[i];
+                }
+                
 
-                recv_data.is_controled_by_vision=!datatoreceive.data.chassis_mode;
+                
+
                 //recv_data.chassis_mode=(uint8_t)vision_usart_instance->recv_buff[17];
                 
             }

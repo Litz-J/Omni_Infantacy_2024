@@ -4,7 +4,7 @@
 #include "bsp_usart.h"
 #include "seasky_protocol.h"
 
-#define VISION_RECV_SIZE 20u // 当前为固定值,36字节
+#define VISION_RECV_SIZE 22u // 当前为固定值,36字节
 #define VISION_SEND_SIZE 36u
 
 #pragma pack(1)
@@ -54,7 +54,7 @@ typedef struct
 		float wz;
 	}move;
 
-	uint8_t is_controled_by_vision;
+	uint8_t key[4];
 
 } Vision_Recv_s;
 
