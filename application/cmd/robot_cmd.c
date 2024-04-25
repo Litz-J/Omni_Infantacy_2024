@@ -12,6 +12,7 @@
 #include "controller.h"
 #include "rm_referee.h"
 #include "user_lib.h"
+#include "buzzer.h"
 // bsp
 #include "bsp_dwt.h"
 #include "bsp_log.h"
@@ -53,6 +54,8 @@ static Robot_Status_e robot_state; // 机器人整体工作状态
 
 BMI088Instance *bmi088_test; // 云台IMU
 BMI088_Data_t bmi088_data;
+
+BuzzzerInstance* robocmd_alarm;
 
 void RobotCMDInit()
 {
@@ -105,6 +108,7 @@ void RobotCMDInit()
     shoot_cmd_pub = PubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
     shoot_feed_sub = SubRegister("shoot_feed", sizeof(Shoot_Upload_Data_s));
 
+
 #ifdef ONE_BOARD // 双板兼容
     chassis_cmd_pub = PubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
     chassis_feed_sub = SubRegister("chassis_feed", sizeof(Chassis_Upload_Data_s));
@@ -148,6 +152,13 @@ void RobotCMDInit()
     pid_yaw_vision = malloc(sizeof(PIDInstance));
     PIDInit(pid_pitch_vision, &pid_pitch_vision_config);
     PIDInit(pid_yaw_vision, &pid_yaw_vision_config);
+
+    Buzzer_config_s buzzer_config ={
+        .alarm_level = ALARM_LEVEL_HIGH, //设置警报等级 同一状态下 高等级的响应
+        .loudness=  0.4, //设置响度
+        .octave=  OCTAVE_1, // 设置音阶
+        };
+    robocmd_alarm = BuzzerRegister(&buzzer_config);
 
     robot_state = ROBOT_READY; // 启动时机器人进入工作模式,后续加入所有应用初始化完成之后再进入
 }
@@ -267,68 +278,121 @@ static void RemoteShootSet()
     shoot_cmd_send.shoot_rate = 4;
 
     static uint8_t vision_control_mode = 0;
+    static uint8_t shoot_mode=1;
+    static uint8_t loader_mode=0;
+    static uint8_t boost_mode=0;
     static uint8_t chassis_mode = 0x03;
+    static friction_mode_e friction_mode=FRICTION_OFF;
 
     static float key_firsttime = 0;
 
     static uint8_t last_is_controled_by_vision;
 
-    static uint16_t keycount = 0;
+    static uint16_t keycount[4];
     static uint8_t last_key[4];
 
-    static float lasttime, thistime, thisclicktime;
+    static float lasttime, thistime, thisclicktime[4];
 
     vision_control_mode = vision_recv_data->key[0];
+    shoot_mode = 1;
+
+    loader_mode=vision_recv_data->key[1]?4:0;
+
 
     thistime = DWT_GetTimeline_ms();
 
-
-    if (vision_recv_data->key[1]&&last_key[1]==0)
+    for (int i = 0; i < 4; i++)
     {
-        thisclicktime = thistime;
-        if (lasttime - thisclicktime <= 300)
+        if (vision_recv_data->key[i] == 1 && last_key[i] == 0)
         {
-            keycount++;
+            thisclicktime[i] = thistime;
+            keycount[i]++;
         }
     }
 
-    if (lasttime - thisclicktime >= 1000)
-    {
-        if (keycount == 1)
-        {
-            // vision_control_mode=!vision_control_mode;
-        }
-        if (keycount == 2)
-        {
-            if (chassis_mode == 0x03)
-            {
-                chassis_mode = 0x01;
-            }
-            else if (chassis_mode == 0x01)
-            {
-                chassis_mode = 0x03;
-            }
-        }
-        keycount = 0;
-    }
-
-    lasttime = thistime;
-    last_is_controled_by_vision = vision_recv_data->key[1];
+    // last_is_controled_by_vision = vision_recv_data->key[1];
 
     for (int i = 0; i < 4; i++)
     {
-        last_key[i] = vision_recv_data->key[0];
+        if (lasttime - thisclicktime[i] >= 400)
+        {
+            switch (i)
+            {
+            case 1:
+                if (keycount[i] == 1)
+                {
+                    // vision_control_mode=!vision_control_mode;
+                }
+                
+                
+                break;
+            case 2:
+                if (keycount[i] == 1)
+                {
+                    if(friction_mode==FRICTION_OFF)
+                        friction_mode=FRICTION_ON;
+                    else
+                        friction_mode=FRICTION_OFF;
+                }
+                if (keycount[i] == 2)
+                {
+                    if (chassis_mode == 0x03)
+                    {
+                        chassis_mode = 0x01;
+                    }
+                    else if (chassis_mode == 0x01)
+                    {
+                        chassis_mode = 0x03;
+                    }
+                }
+                if (keycount[i] == 3)
+                {
+                    if(boost_mode==0)
+                    {
+                        boost_mode=1;
+                    }
+                    else
+                    {
+                        boost_mode=0;
+                    }
+                }
+                break;
+            default:
+                break;
+            }
+
+            keycount[i] = 0;
+        }
+        last_key[i] = vision_recv_data->key[i];
     }
+    lasttime = thistime;
+
+
+    chassis_cmd_send.chassis_mode = (chassis_mode_e)chassis_mode;
+    shoot_cmd_send.friction_mode = friction_mode;
+
+    if(friction_mode==FRICTION_OFF)
+    {
+        //shoot_mode=0;
+        loader_mode=0;
+    }
+
+    shoot_cmd_send.shoot_rate = 5;
+    chassis_cmd_send.shoot_mode = (shoot_mode_e)shoot_mode;
+    shoot_cmd_send.shoot_mode=(shoot_mode_e)shoot_mode;
+    //shoot_cmd_send.shoot_mode=1;
+
+    chassis_cmd_send.load_mode = (loader_mode_e)loader_mode;
+    shoot_cmd_send.load_mode = (loader_mode_e)loader_mode;
 
     if (vision_control_mode)
     {
-        chassis_cmd_send.wz = 5000;
-
-        chassis_cmd_send.chassis_mode = (chassis_mode_e)chassis_mode;
-        chassis_cmd_send.vx = vision_recv_data->move.vx;
-        chassis_cmd_send.vy = vision_recv_data->move.vy;
+        chassis_cmd_send.wz = 5500;
+        chassis_cmd_send.vx = (1+boost_mode)*vision_recv_data->move.vx;
+        chassis_cmd_send.vy = (1+boost_mode)*vision_recv_data->move.vy;
 
         gimbal_cmd_send.yaw = -vision_recv_data->yaw + yaw_offset + last_yaw;
+        
     }
     else
     {
@@ -337,6 +401,7 @@ static void RemoteShootSet()
 
         last_yaw = gimbal_cmd_send.yaw;
         yaw_offset = vision_recv_data->yaw;
+        gimbal_cmd_send.yaw = gimbal_cmd_send.yaw;
     }
 
     // 云台软件限位
@@ -347,16 +412,17 @@ static void RemoteShootSet()
     else if (gimbal_cmd_send.pitch <= PITCH_MIN_ANGLE)
     {
         gimbal_cmd_send.pitch = PITCH_MIN_ANGLE;
+
     }
 
     gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
-    shoot_cmd_send.friction_mode = FRICTION_OFF;
-    shoot_cmd_send.load_mode = LOAD_STOP;
-    gimbal_cmd_send.lid_mode = LID_CLOSE;
+    //shoot_cmd_send.friction_mode = FRICTION_OFF;
+    // shoot_cmd_send.load_mode = LOAD_STOP;
+    // gimbal_cmd_send.lid_mode = LID_CLOSE;
 
     if (switch_is_mid(rc_data[TEMP].rc.switch_right))
     {
-        shoot_cmd_send.friction_mode = FRICTION_ON;
+        //shoot_cmd_send.friction_mode = FRICTION_ON;
         shoot_cmd_send.load_mode = LOAD_STOP;
         gimbal_cmd_send.lid_mode = LID_CLOSE;
     }
@@ -645,6 +711,14 @@ static void SpeedDistribution()
  */
 static void EmergencyHandler()
 {
+    // 遥控器右侧开关为[上],恢复正常运行
+    if (switch_is_up(rc_data[TEMP].rc.switch_right))
+    {
+        robot_state = ROBOT_READY;
+        shoot_cmd_send.shoot_mode = SHOOT_ON;
+        LOGINFO("[CMD] reinstate, robot ready");
+        AlarmSetStatus(robocmd_alarm, ALARM_OFF);  
+    }
     // 拨轮的向下拨超过一半进入急停模式.注意向打时下拨轮是正
     if (rc_data[TEMP].rc.dial > 300 || robot_state == ROBOT_STOP) // 还需添加重要应用和模块离线的判断
     {
@@ -655,13 +729,12 @@ static void EmergencyHandler()
         shoot_cmd_send.friction_mode = FRICTION_OFF;
         shoot_cmd_send.load_mode = LOAD_STOP;
         LOGERROR("[CMD] emergency stop!");
+        AlarmSetStatus(robocmd_alarm, ALARM_ON);
     }
-    // 遥控器右侧开关为[上],恢复正常运行
-    if (switch_is_up(rc_data[TEMP].rc.switch_right))
+    //如果云台停止控制，则让yaw轴ref持续更新
+    if(gimbal_cmd_send.gimbal_mode == GIMBAL_ZERO_FORCE )
     {
-        robot_state = ROBOT_READY;
-        shoot_cmd_send.shoot_mode = SHOOT_ON;
-        LOGINFO("[CMD] reinstate, robot ready");
+        gimbal_cmd_send.yaw=GYRO2GIMBAL_DIR_YAW*gimbal_fetch_data.gimbal_imu_data.YawTotalAngle;
     }
 }
 

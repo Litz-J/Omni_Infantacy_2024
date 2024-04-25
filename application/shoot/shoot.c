@@ -19,6 +19,8 @@ static Shoot_Ctrl_Cmd_s shoot_cmd_recv; // 来自cmd的发射控制信息
 static Subscriber_t *shoot_sub;
 static Shoot_Upload_Data_s shoot_feedback_data; // 来自cmd的发射控制信息
 
+float fric_v_LPF_RC=0.2;
+
 // dwt定时,计算冷却用
 static float hibernate_time = 0, dead_time = 0;
 //冷却计算，结果1表示冷却中
@@ -56,7 +58,7 @@ void ShootInit()
                 .Ki = 15, // 1
                 .Kd = 0.0,
                 .Improve = PID_Integral_Limit,
-                .IntegralLimit = 10000,
+                .IntegralLimit = 3000,
                 .MaxOut = 15000,
             },
             .current_PID = {
@@ -64,7 +66,7 @@ void ShootInit()
                 .Ki = 0.125, // 0.1
                 .Kd = 0,
                 .Improve = PID_Integral_Limit,
-                .IntegralLimit = 10000,
+                .IntegralLimit = 3000,
                 .MaxOut = 15000,
             },
         },
@@ -137,7 +139,7 @@ void ShootInit()
 
 float speedref=0;
 float torque2006 ;
-float fric_v=45500;
+float fric_v=0;
 //48000,31m/s
 //44500,26.7m/s
 
@@ -247,39 +249,46 @@ void ShootTask()
     }
         
         
+    static uint32_t dt_feet_cnt=0;
     
+    static float last_fric_v=0;
+    float fric_v_dt = DWT_GetDeltaT(&dt_feet_cnt);
 
     // 确定是否开启摩擦轮,后续可能修改为键鼠模式下始终开启摩擦轮(上场时建议一直开启)
     if (shoot_cmd_recv.friction_mode == FRICTION_ON)
     {
+        
         // 根据收到的弹速设置设定摩擦轮电机参考值,需实测后填入
         switch (shoot_cmd_recv.bullet_speed)
         {
         case SMALL_AMU_15:
-            DJIMotorSetRef(friction_l, 0);
-            DJIMotorSetRef(friction_r, 0);
+            fric_v=0;
             break;
         case SMALL_AMU_18:
-            DJIMotorSetRef(friction_l, 0);
-            DJIMotorSetRef(friction_r, 0);
+            fric_v=0;
             break;
         case SMALL_AMU_30:
-            DJIMotorSetRef(friction_l, fric_v);
-            DJIMotorSetRef(friction_r, fric_v);
+            fric_v=45500;
             break;
         default: // 当前为了调试设定的默认值4000,因为还没有加入裁判系统无法读取弹速.
-            DJIMotorSetRef(friction_l, fric_v);
-            DJIMotorSetRef(friction_r, fric_v);
+            fric_v=45500;
             break;
         }
+        
         shoot_feedback_data.shoot_status=SHOOT_READY;
     }
     else // 关闭摩擦轮
     {
-        DJIMotorSetRef(friction_l, 0);
-        DJIMotorSetRef(friction_r, 0);
+        fric_v=0;
         shoot_feedback_data.shoot_status=SHOOT_STOP;
     }
+
+    fric_v = fric_v * fric_v_dt / (fric_v_LPF_RC + fric_v_dt) +
+                  last_fric_v * fric_v_LPF_RC / (fric_v_LPF_RC + fric_v_dt);
+    last_fric_v = fric_v;
+
+    DJIMotorSetRef(friction_l, fric_v);
+    DJIMotorSetRef(friction_r, fric_v);
 
     // 开关弹舱盖
     if (shoot_cmd_recv.lid_mode == LID_CLOSE)
