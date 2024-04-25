@@ -567,6 +567,14 @@ static void SpeedDistribution()
  */
 static void EmergencyHandler()
 {
+    // 遥控器右侧开关为[上],恢复正常运行
+    if (switch_is_up(rc_data[TEMP].rc.switch_right))
+    {
+        robot_state = ROBOT_READY;
+        shoot_cmd_send.shoot_mode = SHOOT_ON;
+        LOGINFO("[CMD] reinstate, robot ready");
+        //AlarmSetStatus(robocmd_alarm, ALARM_OFF);  
+    }
     // 拨轮的向下拨超过一半进入急停模式.注意向打时下拨轮是正
     if (rc_data[TEMP].rc.dial > 300 || robot_state == ROBOT_STOP) // 还需添加重要应用和模块离线的判断
     {
@@ -577,13 +585,12 @@ static void EmergencyHandler()
         shoot_cmd_send.friction_mode = FRICTION_OFF;
         shoot_cmd_send.load_mode = LOAD_STOP;
         LOGERROR("[CMD] emergency stop!");
+        //AlarmSetStatus(robocmd_alarm, ALARM_ON);
     }
-    // 遥控器右侧开关为[上],恢复正常运行
-    if (switch_is_up(rc_data[TEMP].rc.switch_right))
+    //如果云台停止控制，则让yaw轴ref持续更新
+    if(gimbal_cmd_send.gimbal_mode == GIMBAL_ZERO_FORCE )
     {
-        robot_state = ROBOT_READY;
-        shoot_cmd_send.shoot_mode = SHOOT_ON;
-        LOGINFO("[CMD] reinstate, robot ready");
+        gimbal_cmd_send.yaw=GYRO2GIMBAL_DIR_YAW*gimbal_fetch_data.gimbal_imu_data.YawTotalAngle;
     }
 }
 
