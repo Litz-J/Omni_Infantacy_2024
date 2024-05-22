@@ -26,8 +26,8 @@ void GimbalInit()
     // YAW
     Motor_Init_Config_s yaw_config = {
         .can_init_config = {
-            .can_handle = &hcan1,
-            .tx_id = 1,
+            .can_handle = &hcan2,
+            .tx_id = 6,
         },
         //无头：angle:8,0,0.32,max400,speed:40,200,0,max15000
         .controller_param_init_config = {
@@ -67,21 +67,21 @@ void GimbalInit()
     Motor_Init_Config_s pitch_config = {
         .can_init_config = {
             .can_handle = &hcan2,
-            .tx_id = 4,
+            .tx_id = 5,
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp = 50, // 10
+                .Kp = 30, // 10
                 .Ki = 0.05,
-                .Kd = 1.695,
+                .Kd = 1.795,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
                 .IntegralLimit = 5,
                 .MaxOut = 100,
                 .Derivative_LPF_RC= 0.01200000005,
             },
             .speed_PID = {
-                .Kp = 85,  // 50
-                .Ki = 405, // 350
+                .Kp = 135,  // 50
+                .Ki = 255, // 350
                 .Kd = 0,   // 0
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .IntegralLimit = 7500,
@@ -97,7 +97,7 @@ void GimbalInit()
             .outer_loop_type = ANGLE_LOOP,
             .close_loop_type = SPEED_LOOP | ANGLE_LOOP,
             .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
-            .feedback_reverse_flag=FEEDBACK_DIRECTION_REVERSE
+            .feedback_reverse_flag=FEEDBACK_DIRECTION_NORMAL
         },
         .motor_type = GM6020,
     };

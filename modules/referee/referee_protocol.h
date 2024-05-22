@@ -113,6 +113,7 @@ typedef struct
 	uint8_t game_type : 4;
 	uint8_t game_progress : 4;
 	uint16_t stage_remain_time;
+	uint64_t SyncTimeStamp;
 } ext_game_state_t;
 
 /* ID: 0x0002  Byte:  1    比赛结果数据 */

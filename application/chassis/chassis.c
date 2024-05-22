@@ -165,47 +165,11 @@ static void MecanumCalculate()
 /**
  * @brief 全向轮：计算每个轮毂电机的输出,正运动学解算
  *        用宏进行预替换减小开销,运动解算具体过程参考教程
- *        先正交分解计算出临时变量，再应用到底盘上，最后缩放速度
- *        注意正走（四个轮发力）和斜着走（两轮发力）是不同的
+ * 
  */
 static void OmnidirectionalCalculate()
 {
-    // static float v1,v2,length_past,length_now;
-    // static float k; //旋转后的缩放系数
 
-    // static float k_v1,k_v2; //缩放后的速度
-
-    // length_past=Sqrt(float_Square(chassis_vx)+float_Square(chassis_vy));
-
-    // v1=chassis_vx*COSECANT45+chassis_vy*SECANT45;
-    // v2=chassis_vx*SECANT45-chassis_vy*COSECANT45;
-    // length_now=Sqrt(float_Square(v1)+float_Square(v2));
-
-    // k=(length_now!=0)?(length_past/length_now) : 0;
-
-    // k_v1=v1*k;
-    // k_v2=v2*k;
-
-    // switch (chassis_cmd_recv.chassis_mode)
-    // {
-    // case CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL:
-    //     vt_lf = -chassis_vx - chassis_cmd_recv.wz * LF_CENTER;
-    //     vt_rf = chassis_vy - chassis_cmd_recv.wz * RF_CENTER;
-    //     vt_lb = -chassis_vy - chassis_cmd_recv.wz * LB_CENTER;
-    //     vt_rb = chassis_vx - chassis_cmd_recv.wz * RB_CENTER;
-    //     break;
-    // default:
-    // case CHASSIS_FOLLOW_GIMBAL_YAW:
-    //     vt_lf = -chassis_vx * COSINE45 - chassis_vy * SINE45 - chassis_cmd_recv.wz * LF_CENTER;
-    //     vt_rf = -chassis_vx * COSECANT45 + chassis_vy * SECANT45 - chassis_cmd_recv.wz * RF_CENTER;
-    //     vt_lb = chassis_vx * COSECANT45 - chassis_vy * SECANT45 - chassis_cmd_recv.wz * LB_CENTER;
-    //     vt_rb = chassis_vx * COSECANT45 + chassis_vy * SECANT45 - chassis_cmd_recv.wz * RB_CENTER;
-    //     break;
-    // }
-    // vt_lf = -k_v1 - chassis_cmd_recv.wz * LF_CENTER;
-    // vt_rf = -k_v2 - chassis_cmd_recv.wz * RF_CENTER;
-    // vt_lb =  k_v2 - chassis_cmd_recv.wz * LB_CENTER;
-    // vt_rb =  k_v1 - chassis_cmd_recv.wz * RB_CENTER;
     vt_lf =(-chassis_vx-chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * LF_CENTER;
     vt_rf =(-chassis_vx+chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * RF_CENTER;
     vt_lb =(chassis_vx-chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * LB_CENTER;
@@ -250,37 +214,49 @@ static void LimitChassisOutput()
 {
     chassis_pid_totaloutput = 0;
     chassis_power_limit = referee_data->GameRobotState.chassis_power_limit; // 从裁判系统获取的能量限制
+    
 
     chassis_input_power = referee_data->PowerHeatData.chassis_power;
     chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
 
-    if (chassis_power_limit >= 100)
+    if (chassis_power_limit >= 110)
     {
-        chassis_power_limit = 100;
+        chassis_power_limit = 110;
     }
+
+
+    //WARNING：溜车模式！
+    chassis_power_limit = 400.0f;
 
     // 根据缓冲能量和当前功率限制，计算最大功率值
     chassis_power_offset = -1 * CHASSIS_POWER_COFFICIENT * (chassis_power_limit)-0;
 
     chassis_power_max = chassis_power_limit + chassis_power_offset;
 
-    if (isLowBuffer)
+    //判断是否在比赛内，决定是否开启缓冲能量补偿
+    if(referee_data->GameState.game_progress == 0x04)
     {
-        chassis_power_max = chassis_power_max - 25;
-        if (chassis_power_buffer >= 55.0f)
+        if ( isLowBuffer)
         {
-            isLowBuffer = false;
+            chassis_power_max = chassis_power_max - 25;
+            if (chassis_power_buffer >= 55.0f)
+            {
+                isLowBuffer = false;
+            }
+        }
+        else
+        {
+            // 缓冲能量判断，如果缓冲能量少，则马上减小功率，减少量待测
+            if (chassis_power_buffer < 10.0f)
+            {
+                isLowBuffer = true;
+                chassis_power_max = chassis_power_max - 25;
+            }
         }
     }
-    else
-    {
-        // 缓冲能量判断，如果缓冲能量少，则马上减小功率，减少量待测
-        if (chassis_power_buffer < 10.0f)
-        {
-            isLowBuffer = true;
-            chassis_power_max = chassis_power_max - 35;
-        }
-    }
+    
+
+    
 
     // 参考西交利物浦
     for (int i = 0; i < 4; i++)
@@ -391,23 +367,22 @@ void ChassisTask()
     case CHASSIS_FOLLOW_GIMBAL_YAW: // 跟随云台,不单独设置pid,以误差角度平方为速度输出
 
         // 增加角速度判别，如果先前有一定角速度（阈值需要测）（比如在小陀螺，那么就不要反向转回去，这样机动性会更好）
-        if (chassis_cmd_recv.offset_angle * chassis_feedback_data.real_wz < 0 && fabs(chassis_feedback_data.real_wz) >= 2500)
+        if (chassis_cmd_recv.offset_angle * chassis_feedback_data.real_wz < 0 && fabs(chassis_feedback_data.real_wz) >= 3000)
         {
             chassis_cmd_recv.offset_angle -= 360;
         }
-        chassis_cmd_recv.wz = -1.0f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        chassis_cmd_recv.wz = -0.5f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
     case CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL:
-
-        // 角度回中直接把offset加个45度即可
+        // 直接把offset加个45度即可
         chassis_cmd_recv.offset_angle -= 45;
 
         // 增加角速度判别，如果先前有一定角速度（阈值需要测）（比如在小陀螺，那么就不要反向转回去，这样机动性会更好）
-        if (chassis_cmd_recv.offset_angle * chassis_feedback_data.real_wz < 0 && fabs(chassis_feedback_data.real_wz) >= 2500)
+        if (chassis_cmd_recv.offset_angle * chassis_feedback_data.real_wz < 0 && fabs(chassis_feedback_data.real_wz) >= 3000)
         {
             chassis_cmd_recv.offset_angle -= 360;
         }
-        chassis_cmd_recv.wz = -1.15f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        chassis_cmd_recv.wz = -0.5f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
 
     case CHASSIS_ROTATE: // 自旋,同时保持全向机动;当前wz维持定值,后续增加不规则的变速策略
@@ -434,8 +409,8 @@ void ChassisTask()
     chassis_vy = chassis_cmd_recv.vx * sin_theta + chassis_cmd_recv.vy * cos_theta;
 
     // 根据控制模式进行正运动学解算,计算底盘输出
-    // MecanumCalculate();
-    OmnidirectionalCalculate();
+    MecanumCalculate();
+    //OmnidirectionalCalculate();
 
     // 设定底盘闭环参考值
     ChassisSetRef();

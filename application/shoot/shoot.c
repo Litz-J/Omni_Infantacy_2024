@@ -79,18 +79,18 @@ void ShootInit()
             .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
         },
         .motor_type = M3508};
-    friction_config.can_init_config.tx_id = 6,
+    friction_config.can_init_config.tx_id = 1,
     friction_l = DJIMotorInit(&friction_config);
 
-    friction_config.can_init_config.tx_id = 7; // 右摩擦轮,改txid和方向就行
+    friction_config.can_init_config.tx_id = 2; // 右摩擦轮,改txid和方向就行
     friction_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     friction_r = DJIMotorInit(&friction_config);
 
     // 拨盘电机
     Motor_Init_Config_s loader_config = {
         .can_init_config = {
-            .can_handle = &hcan2,
-            .tx_id = 5,
+            .can_handle = &hcan1,
+            .tx_id = 6,
         },
         .controller_param_init_config = {
             .angle_PID = {
@@ -268,10 +268,10 @@ void ShootTask()
             fric_v=0;
             break;
         case SMALL_AMU_30:
-            fric_v=45500;
+            fric_v=40000;
             break;
         default: // 当前为了调试设定的默认值4000,因为还没有加入裁判系统无法读取弹速.
-            fric_v=45500;
+            fric_v=40000;
             break;
         }
         

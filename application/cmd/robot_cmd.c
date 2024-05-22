@@ -140,7 +140,7 @@ void RobotCMDInit()
                           },
                       pid_yaw_vision_config =
                           {
-                              .Kp = 0.000669999979, // 4.5
+                              .Kp = 0.000669999999, // 4.5
                               .Ki = 0.00124999997,  // 0
                               .Kd = 0.0,            // 0
                               .IntegralLimit = 10,
@@ -206,15 +206,17 @@ static void RemoteControlSet()
         shoot_cmd_send.friction_mode = FRICTION_OFF;
         shoot_cmd_send.load_mode = LOAD_STOP;
         gimbal_cmd_send.lid_mode = LID_CLOSE;
+        chassis_cmd_send.wz = 5000.0f;
     }
     else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[中],底盘和云台分离,底盘保持不转动
     {
-        // chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
-        chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL;
+        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+        //chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
         gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
         shoot_cmd_send.friction_mode = FRICTION_OFF;
         shoot_cmd_send.load_mode = LOAD_STOP;
         gimbal_cmd_send.lid_mode = LID_CLOSE;
+        //chassis_cmd_send.wz = -5000.0f;
     }
     else if (switch_is_up(rc_data[TEMP].rc.switch_right)) // 跟随
     {
@@ -259,13 +261,13 @@ static void RemoteControlSet()
         gimbal_cmd_send.pitch = PITCH_MIN_ANGLE;
     }
 
-    chassis_speed_rocker = 12000;
+    chassis_speed_rocker = 16000;
 
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
     chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r_ / 660.0f * chassis_speed_rocker; // _水平方向
     chassis_cmd_send.vy = (float)rc_data[TEMP].rc.rocker_r1 / 660.0f * chassis_speed_rocker; // 竖直方向
 
-    chassis_cmd_send.wz = 6000.0f;
+    //chassis_cmd_send.wz = 6000.0f;
     shoot_cmd_send.shoot_rate = 8;
 }
 
@@ -385,11 +387,12 @@ static void RemoteShootSet()
     chassis_cmd_send.load_mode = (loader_mode_e)loader_mode;
     shoot_cmd_send.load_mode = (loader_mode_e)loader_mode;
 
+    float vision_move_rate=2;
     if (vision_control_mode)
     {
         chassis_cmd_send.wz = 5500;
-        chassis_cmd_send.vx = (1+boost_mode)*vision_recv_data->move.vx;
-        chassis_cmd_send.vy = (1+boost_mode)*vision_recv_data->move.vy;
+        chassis_cmd_send.vx = (1+boost_mode)*vision_recv_data->move.vx*vision_move_rate;
+        chassis_cmd_send.vy = (1+boost_mode)*vision_recv_data->move.vy*vision_move_rate;
 
         gimbal_cmd_send.yaw = -vision_recv_data->yaw + yaw_offset + last_yaw;
         
@@ -481,6 +484,12 @@ static void MouseKeySet()
         chassis_speed_mouse = 13000;
         chassis_rotate_speed_mouse = 5000;
         chassis_fastrotate_speed_mouse = 8500;
+    }
+    if (chassis_power_limit >= 250)
+    {
+        chassis_speed_mouse = 17000;
+        chassis_rotate_speed_mouse = 7000;
+        chassis_fastrotate_speed_mouse = 10000;
     }
 
     // switch(level)
@@ -729,7 +738,7 @@ static void EmergencyHandler()
         shoot_cmd_send.friction_mode = FRICTION_OFF;
         shoot_cmd_send.load_mode = LOAD_STOP;
         LOGERROR("[CMD] emergency stop!");
-        AlarmSetStatus(robocmd_alarm, ALARM_ON);
+        //AlarmSetStatus(robocmd_alarm, ALARM_ON);
     }
     //如果云台停止控制，则让yaw轴ref持续更新
     if(gimbal_cmd_send.gimbal_mode == GIMBAL_ZERO_FORCE )
