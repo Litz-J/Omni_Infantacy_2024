@@ -59,47 +59,6 @@ BuzzzerInstance* robocmd_alarm;
 
 void RobotCMDInit()
 {
-    // BMI088_Init_Config_s bmi088_config = {
-    //     .cali_mode = BMI088_CALIBRATE_ONLINE_MODE,
-    //     .work_mode = BMI088_BLOCK_TRIGGER_MODE,
-    //     .spi_acc_config = {
-    //         .spi_handle = &hspi1,
-    //         .GPIOx = GPIOA,
-    //         .cs_pin = GPIO_PIN_4,
-    //         .spi_work_mode = SPI_DMA_MODE,
-    //     },
-    //     .acc_int_config = {
-    //         .GPIOx = GPIOC,
-    //         .GPIO_Pin = GPIO_PIN_4,
-    //         .exti_mode = GPIO_EXTI_MODE_RISING,
-    //     },
-    //     .spi_gyro_config = {
-    //         .spi_handle = &hspi1,
-    //         .GPIOx = GPIOB,
-    //         .cs_pin = GPIO_PIN_0,
-    //         .spi_work_mode = SPI_DMA_MODE,
-    //     },
-    //     .gyro_int_config = {
-    //         .GPIO_Pin = GPIO_PIN_5,
-    //         .GPIOx = GPIOC,
-    //         .exti_mode = GPIO_EXTI_MODE_RISING,
-    //     },
-    //     .heat_pwm_config = {
-    //         .htim = &htim10,
-    //         .channel = TIM_CHANNEL_1,
-    //         .period = 1,
-    //     },
-    //     .heat_pid_config = {
-    //         .Kp = 0.5,
-    //         .Ki = 0,
-    //         .Kd = 0,
-    //         .DeadBand = 0.1,
-    //         .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-    //         .IntegralLimit = 100,
-    //         .MaxOut = 100,
-    //     },
-    // };
-    // bmi088_test = BMI088Register(&bmi088_config);
     rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
     vision_recv_data = VisionInit(&huart1); // 视觉通信串口
 
@@ -483,28 +442,6 @@ static void MouseKeySet()
         chassis_fastrotate_speed_mouse = 8500;
     }
 
-    // switch(level)
-    // {
-    //     default:
-    //     case 1:
-    //     case 2:
-    //     case 3:
-    //         chassis_speed_mouse=5000;
-    //         break;
-    //     case 4:
-    //     case 5:
-    //     case 6:
-    //         chassis_speed_mouse=7500;
-    //         break;
-    //     case 7:
-    //     case 8:
-    //         chassis_speed_mouse=10000;
-    //         break;
-    //     case 9:
-    //     case 10:
-    //         chassis_speed_mouse=11000;
-    //         break;
-    // }
     chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].s * chassis_speed_mouse; // 系数待测
     chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].d * chassis_speed_mouse;
 

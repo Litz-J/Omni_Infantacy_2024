@@ -170,42 +170,6 @@ static void MecanumCalculate()
  */
 static void OmnidirectionalCalculate()
 {
-    // static float v1,v2,length_past,length_now;
-    // static float k; //旋转后的缩放系数
-
-    // static float k_v1,k_v2; //缩放后的速度
-
-    // length_past=Sqrt(float_Square(chassis_vx)+float_Square(chassis_vy));
-
-    // v1=chassis_vx*COSECANT45+chassis_vy*SECANT45;
-    // v2=chassis_vx*SECANT45-chassis_vy*COSECANT45;
-    // length_now=Sqrt(float_Square(v1)+float_Square(v2));
-
-    // k=(length_now!=0)?(length_past/length_now) : 0;
-
-    // k_v1=v1*k;
-    // k_v2=v2*k;
-
-    // switch (chassis_cmd_recv.chassis_mode)
-    // {
-    // case CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL:
-    //     vt_lf = -chassis_vx - chassis_cmd_recv.wz * LF_CENTER;
-    //     vt_rf = chassis_vy - chassis_cmd_recv.wz * RF_CENTER;
-    //     vt_lb = -chassis_vy - chassis_cmd_recv.wz * LB_CENTER;
-    //     vt_rb = chassis_vx - chassis_cmd_recv.wz * RB_CENTER;
-    //     break;
-    // default:
-    // case CHASSIS_FOLLOW_GIMBAL_YAW:
-    //     vt_lf = -chassis_vx * COSINE45 - chassis_vy * SINE45 - chassis_cmd_recv.wz * LF_CENTER;
-    //     vt_rf = -chassis_vx * COSECANT45 + chassis_vy * SECANT45 - chassis_cmd_recv.wz * RF_CENTER;
-    //     vt_lb = chassis_vx * COSECANT45 - chassis_vy * SECANT45 - chassis_cmd_recv.wz * LB_CENTER;
-    //     vt_rb = chassis_vx * COSECANT45 + chassis_vy * SECANT45 - chassis_cmd_recv.wz * RB_CENTER;
-    //     break;
-    // }
-    // vt_lf = -k_v1 - chassis_cmd_recv.wz * LF_CENTER;
-    // vt_rf = -k_v2 - chassis_cmd_recv.wz * RF_CENTER;
-    // vt_lb =  k_v2 - chassis_cmd_recv.wz * LB_CENTER;
-    // vt_rb =  k_v1 - chassis_cmd_recv.wz * RB_CENTER;
     vt_lf =(-chassis_vx-chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * LF_CENTER;
     vt_rf =(-chassis_vx+chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * RF_CENTER;
     vt_lb =(chassis_vx-chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * LB_CENTER;
@@ -258,6 +222,8 @@ static void LimitChassisOutput()
     {
         chassis_power_limit = 100;
     }
+
+    chassis_power_limit=300;
 
     // 根据缓冲能量和当前功率限制，计算最大功率值
     chassis_power_offset = -1 * CHASSIS_POWER_COFFICIENT * (chassis_power_limit)-0;
@@ -395,7 +361,7 @@ void ChassisTask()
         {
             chassis_cmd_recv.offset_angle -= 360;
         }
-        chassis_cmd_recv.wz = -1.0f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        chassis_cmd_recv.wz = -0.8f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
     case CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL:
 
@@ -407,7 +373,7 @@ void ChassisTask()
         {
             chassis_cmd_recv.offset_angle -= 360;
         }
-        chassis_cmd_recv.wz = -1.15f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        chassis_cmd_recv.wz = -0.8f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
 
     case CHASSIS_ROTATE: // 自旋,同时保持全向机动;当前wz维持定值,后续增加不规则的变速策略

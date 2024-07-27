@@ -105,7 +105,7 @@ void ShootInit()
                 .DeadBand=750,
             },
             .speed_PID = {
-                .Kp = 5, // 10
+                .Kp = 7, // 10
                 .Ki = 0.800000012, // 1
                 .Kd = 0.0250000004,
                 .Improve = PID_Integral_Limit | PID_DerivativeFilter,
@@ -114,8 +114,8 @@ void ShootInit()
                 .Derivative_LPF_RC = 0.04,
             },
             .current_PID = {
-                .Kp = 2, // 0.7
-                .Ki = 0.3, // 0.1
+                .Kp = 1.5, // 0.7
+                .Ki = 0.25, // 0.1
                 .Kd = 0.00079999998,
                 .Improve = PID_Integral_Limit | PID_DerivativeFilter,
                 .IntegralLimit = 3000,
