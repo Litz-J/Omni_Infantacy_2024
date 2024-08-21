@@ -58,7 +58,11 @@
         "can.h": "c",
         "freertos.h": "c",
         "ui_types.h": "c",
-        "ins_task.h": "c"
+        "ins_task.h": "c",
+        "usb_device.h": "c",
+        "usbd_cdc.h": "c",
+        "usbd_desc.h": "c",
+        "usbd_conf.h": "c"
     },
     // "clangd.arguments": [
     //     "-query-driver=C:/msys64/mingw64/bin/arm-none-eabi-*.exe",
