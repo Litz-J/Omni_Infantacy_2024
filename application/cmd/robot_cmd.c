@@ -123,7 +123,7 @@ void RobotCMDInit()
 #endif // GIMBAL_BOARD
     gimbal_cmd_send.pitch = 0;
 
-    //定义自瞄PID
+    //定义自瞄PID，没用
     PID_Init_Config_s pid_pitch_vision_config=
     {
         .Kp = 0.000599999796, // 4.5
@@ -214,6 +214,7 @@ static void RemoteControlSet()
         gimbal_cmd_send.lid_mode=LID_CLOSE;
         
     }
+    //自瞄，没用
     float pitch_offset=-70;
     float yaw_offset=0;
     if(vision_recv_data->pitch==0 && pid_pitch_vision->Last_Measure==0)
@@ -226,6 +227,8 @@ static void RemoteControlSet()
     }
     PIDCalculate(pid_pitch_vision,vision_recv_data->pitch,pitch_offset);
     PIDCalculate(pid_yaw_vision,vision_recv_data->yaw,yaw_offset);
+
+
     // 云台参数,确定云台控制数据
     if (switch_is_mid(rc_data[TEMP].rc.switch_left)) // 左侧开关状态为[中],视觉模式
     {
@@ -249,7 +252,7 @@ static void RemoteControlSet()
         gimbal_cmd_send.pitch=PITCH_MIN_ANGLE;
     }
 
-    chassis_speed_rocker=12000;
+    chassis_speed_rocker=1;
 
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
     chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r_/660.0f * chassis_speed_rocker; // _水平方向
@@ -293,46 +296,43 @@ static void MouseKeySet()
     uint8_t level=chassis_fetch_data.real_level;
     uint16_t chassis_power_limit=chassis_fetch_data.chassis_power_limit;
     
-    //默认值，防止过快
-    chassis_speed_mouse=5000;
+    //默认值，防止裁判系统断连时过快
+    chassis_speed_mouse=0.4;
     chassis_rotate_speed_mouse=2000;
     chassis_fastrotate_speed_mouse=2500;
 
-    //通过缓冲能量设定最大速度，都是待测
+    //通过最大能量功率最大速度，都是待测
     if(chassis_power_limit>=40)
     {
-        chassis_speed_mouse=7000;
+        chassis_speed_mouse=0.45;
         chassis_rotate_speed_mouse=2500;
         chassis_fastrotate_speed_mouse=3500;
     }
     if(chassis_power_limit>=60)
     {
-        chassis_speed_mouse=8000;
+        chassis_speed_mouse=0.55;
         chassis_rotate_speed_mouse=3500;
         chassis_fastrotate_speed_mouse=4500;
     }
         if(chassis_power_limit>=70)
     {
-        chassis_speed_mouse=9500;
+        chassis_speed_mouse=0.65;
         chassis_rotate_speed_mouse=3500;
         chassis_fastrotate_speed_mouse=4500;
     }
     if(chassis_power_limit>=90)
     {
-        chassis_speed_mouse=11000;
+        chassis_speed_mouse=0.75;
         chassis_rotate_speed_mouse=4500;
         chassis_fastrotate_speed_mouse=6000;
     }
     if(chassis_power_limit>=100)
     {
-        chassis_speed_mouse=13000;
+        chassis_speed_mouse=0.9;
         chassis_rotate_speed_mouse=5000;
         chassis_fastrotate_speed_mouse=8500;
     }
-    
-
-
-
+    //通过等级限制功率，感觉不如通过能量限制功率
     // switch(level)
     // {
     //     default:
@@ -464,54 +464,54 @@ static void MouseKeySet()
     }
         
     }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_C] % 10) // C键设置底盘功率
-    {//血量优先
-    case 0:
-        chassis_cmd_send.robot_real_level = 1;
-        break;
-    case 1:
-        chassis_cmd_send.robot_real_level = 2;
-        break;
-    case 2:
-        chassis_cmd_send.robot_real_level = 3;
-        break;
-    case 3:
-        chassis_cmd_send.robot_real_level = 4;
-        break;
-    case 4:
-        chassis_cmd_send.robot_real_level = 5;
-        break;
-    case 5:
-        chassis_cmd_send.robot_real_level = 6;
-        break;
-    case 6:
-        chassis_cmd_send.robot_real_level = 7;
-        break;
-    case 7:
-        chassis_cmd_send.robot_real_level = 8;
-        break;
-    case 8:
-        chassis_cmd_send.robot_real_level = 9;
-        break;
-    default:
-        chassis_cmd_send.robot_real_level = 10;
-        break;
-    }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_X] % 2) // X键降低底盘功率为前一级
-    {
-    case 1:
-        {
-            if(rc_data[TEMP].key_count[KEY_PRESS][Key_C] > 0)
-            {
-                rc_data[TEMP].key_count[KEY_PRESS][Key_C]--;
-                rc_data[TEMP].key_count[KEY_PRESS][Key_X]++;
-            }
+    // switch (rc_data[TEMP].key_count[KEY_PRESS][Key_C] % 10) // C键设置底盘功率
+    // {//血量优先
+    // case 0:
+    //     chassis_cmd_send.robot_real_level = 1;
+    //     break;
+    // case 1:
+    //     chassis_cmd_send.robot_real_level = 2;
+    //     break;
+    // case 2:
+    //     chassis_cmd_send.robot_real_level = 3;
+    //     break;
+    // case 3:
+    //     chassis_cmd_send.robot_real_level = 4;
+    //     break;
+    // case 4:
+    //     chassis_cmd_send.robot_real_level = 5;
+    //     break;
+    // case 5:
+    //     chassis_cmd_send.robot_real_level = 6;
+    //     break;
+    // case 6:
+    //     chassis_cmd_send.robot_real_level = 7;
+    //     break;
+    // case 7:
+    //     chassis_cmd_send.robot_real_level = 8;
+    //     break;
+    // case 8:
+    //     chassis_cmd_send.robot_real_level = 9;
+    //     break;
+    // default:
+    //     chassis_cmd_send.robot_real_level = 10;
+    //     break;
+    // }
+    // switch (rc_data[TEMP].key_count[KEY_PRESS][Key_X] % 2) // X键降低底盘功率为前一级
+    // {
+    // case 1:
+    //     {
+    //         if(rc_data[TEMP].key_count[KEY_PRESS][Key_C] > 0)
+    //         {
+    //             rc_data[TEMP].key_count[KEY_PRESS][Key_C]--;
+    //             rc_data[TEMP].key_count[KEY_PRESS][Key_X]++;
+    //         }
             
-        } 
-        break;
-    default:
-        break;
-    }
+    //     } 
+    //     break;
+    // default:
+    //     break;
+    // }
     switch (rc_data[TEMP].key[KEY_PRESS].shift) // 按shift强制开启小陀螺
     {
     case 1:

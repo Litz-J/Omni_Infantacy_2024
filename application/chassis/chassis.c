@@ -74,7 +74,7 @@ void ChassisInit()
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .MaxOut = 12000,
             },
-            .current_PID = {
+            .current_PID = {//没啥用
                 .Kp = 0.8,  // 0.4
                 .Ki = 0.08, // 0
                 .Kd = 0,
@@ -146,16 +146,21 @@ void ChassisInit()
 #define RF_CENTER ((HALF_TRACK_WIDTH - CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE - CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
 #define LB_CENTER ((HALF_TRACK_WIDTH + CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE + CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
 #define RB_CENTER ((HALF_TRACK_WIDTH - CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE + CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
+#define VWHEEL_2_DPS(v) (v * REDUCTION_RATIO_WHEEL * RAD_2_DEGREE / RADIUS_WHEEL * 1000.0f)
 /**
  * @brief 计算每个轮毂电机的输出,正运动学解算
  *        用宏进行预替换减小开销,运动解算具体过程参考教程
  */
 static void MecanumCalculate()
 {
-    vt_lf = -chassis_vx - chassis_vy - chassis_cmd_recv.wz * LF_CENTER;
-    vt_rf = -chassis_vx + chassis_vy - chassis_cmd_recv.wz * RF_CENTER;
-    vt_lb = chassis_vx - chassis_vy - chassis_cmd_recv.wz * LB_CENTER;
-    vt_rb = chassis_vx + chassis_vy - chassis_cmd_recv.wz * RB_CENTER;
+    // 将线速度（m/s）转换为角速度（dps）
+    float vx_dps = VWHEEL_2_DPS(chassis_vx);
+    float vy_dps = VWHEEL_2_DPS(chassis_vy);
+    //轮子线速度±vx±vy-wz*r
+    vt_lf = -vx_dps - vy_dps - chassis_cmd_recv.wz * LF_CENTER;
+    vt_rf = -vx_dps + vy_dps - chassis_cmd_recv.wz * RF_CENTER;
+    vt_lb = vx_dps - vy_dps - chassis_cmd_recv.wz * LB_CENTER;
+    vt_rb = vx_dps + vy_dps - chassis_cmd_recv.wz * RB_CENTER;
 }
 
 #define COSINE45 0.7071068f
@@ -170,46 +175,14 @@ static void MecanumCalculate()
  */
 static void OmnidirectionalCalculate()
 {
-    // static float v1,v2,length_past,length_now;
-    // static float k; //旋转后的缩放系数
-
-    // static float k_v1,k_v2; //缩放后的速度
-
-    // length_past=Sqrt(float_Square(chassis_vx)+float_Square(chassis_vy));
-
-    // v1=chassis_vx*COSECANT45+chassis_vy*SECANT45;
-    // v2=chassis_vx*SECANT45-chassis_vy*COSECANT45;
-    // length_now=Sqrt(float_Square(v1)+float_Square(v2));
-
-    // k=(length_now!=0)?(length_past/length_now) : 0;
-
-    // k_v1=v1*k;
-    // k_v2=v2*k;
-
-    // switch (chassis_cmd_recv.chassis_mode)
-    // {
-    // case CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL:
-    //     vt_lf = -chassis_vx - chassis_cmd_recv.wz * LF_CENTER;
-    //     vt_rf = chassis_vy - chassis_cmd_recv.wz * RF_CENTER;
-    //     vt_lb = -chassis_vy - chassis_cmd_recv.wz * LB_CENTER;
-    //     vt_rb = chassis_vx - chassis_cmd_recv.wz * RB_CENTER;
-    //     break;
-    // default:
-    // case CHASSIS_FOLLOW_GIMBAL_YAW:
-    //     vt_lf = -chassis_vx * COSINE45 - chassis_vy * SINE45 - chassis_cmd_recv.wz * LF_CENTER;
-    //     vt_rf = -chassis_vx * COSECANT45 + chassis_vy * SECANT45 - chassis_cmd_recv.wz * RF_CENTER;
-    //     vt_lb = chassis_vx * COSECANT45 - chassis_vy * SECANT45 - chassis_cmd_recv.wz * LB_CENTER;
-    //     vt_rb = chassis_vx * COSECANT45 + chassis_vy * SECANT45 - chassis_cmd_recv.wz * RB_CENTER;
-    //     break;
-    // }
-    // vt_lf = -k_v1 - chassis_cmd_recv.wz * LF_CENTER;
-    // vt_rf = -k_v2 - chassis_cmd_recv.wz * RF_CENTER;
-    // vt_lb =  k_v2 - chassis_cmd_recv.wz * LB_CENTER;
-    // vt_rb =  k_v1 - chassis_cmd_recv.wz * RB_CENTER;
-    vt_lf =(-chassis_vx-chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * LF_CENTER;
-    vt_rf =(-chassis_vx+chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * RF_CENTER;
-    vt_lb =(chassis_vx-chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * LB_CENTER;
-    vt_rb =(chassis_vx+chassis_vy)*COSECANT45 - chassis_cmd_recv.wz * RB_CENTER;
+    // 将线速度（m/s）转换为角速度（dps）
+    float vx_dps = VWHEEL_2_DPS(chassis_vx);
+    float vy_dps = VWHEEL_2_DPS(chassis_vy);
+    //注意wz单位是度，*LF_CENTER相当于把wz*LF_CENTER换算成弧度并乘上了半径
+    vt_lf =(-vx_dps-vy_dps)*COSECANT45 - chassis_cmd_recv.wz * LF_CENTER;
+    vt_rf =(-vx_dps+vy_dps)*COSECANT45 - chassis_cmd_recv.wz * RF_CENTER;
+    vt_lb =(vx_dps-vy_dps)*COSECANT45 - chassis_cmd_recv.wz * LB_CENTER;
+    vt_rb =(vx_dps+vy_dps)*COSECANT45 - chassis_cmd_recv.wz * RB_CENTER;
 }
 
 /**
@@ -224,20 +197,22 @@ static void ChassisSetRef()
     DJIMotorSetRef(motor_rb, vt_rb);
 }
 
-float chassis_pid_output[4];
-float chassis_pid_totaloutput;
+/*这功率限制使用的临时变量*/
 
-float chassis_power_limit;
-float chassis_input_power;
-float chassis_power_buffer;
-float chassis_power_max;
-float chassis_power_offset = -5; // 冗余
+static float chassis_pid_output[4];
+static float chassis_pid_totaloutput;
 
+static float chassis_power_limit,chassis_input_power,chassis_power_buffer;//裁判系统获取的功率限制值、当前功率值、当前缓冲能量值
+static float chassis_power_max;//计算使用的最大功率值
+static float chassis_power_offset = -5; // 功率冗余，可修改
+
+//三个系数
 float toque_coefficient = 1.99688994e-6f; // (20/16384)*(0.3)*(187/3591)/9.55
 float k1 = 1.26e-07;                      // k1，9.50000043e-08
 float k2 = 1.95000013e-07;                // k2
 float constant_coefficient = 3.5f;
 
+//标示是否处在缓冲能量低状态
 bool isLowBuffer = false;
 
 #define CHASSIS_POWER_COFFICIENT (1 - (float)(120 - 45) / (float)(135 - 50)) // 这个量出现是因为我们的电机阻力较大，导致理论值和实际值相差较大，用于补偿
@@ -307,6 +282,7 @@ static void LimitChassisOutput()
                 continue;
             }
 
+            //公式法解力矩功率与实际电机功率的一元二次方程
             float a = k1;
             float b = toque_coefficient * chassis_motor_instance[i]->measure.speed_rpm;
             float c = k2 * float_Square(chassis_motor_instance[i]->measure.speed_rpm) - chassis_pid_output[i] + constant_coefficient;
@@ -339,7 +315,8 @@ static void LimitChassisOutput()
 static void EstimateSpeed()
 {
     // 根据电机速度和陀螺仪的角速度进行解算,还可以利用加速度计判断是否打滑(如果有)
-    // chassis_feedback_data.vx vy wz =
+
+    //用于进行底盘旋转缓加速的真实速度值计算
     chassis_feedback_data.real_wz = (-motor_lf->measure.speed_aps - motor_rf->measure.speed_aps - motor_lb->measure.speed_aps - motor_rb->measure.speed_aps) / (LF_CENTER + RF_CENTER + LB_CENTER + RB_CENTER);
     //  ...
 }
@@ -357,6 +334,13 @@ void ChassisTask()
 #ifdef CHASSIS_BOARD
     chassis_cmd_recv = *(Chassis_Ctrl_Cmd_s *)CANCommGet(chasiss_can_comm);
 #endif // CHASSIS_BOARD
+    static float sin_theta, cos_theta;//计算夹角的sin和cos值
+
+    //底盘旋转缓慢加速dt计算变量
+    static uint32_t dt_feet_cnt=0;
+    static float wz_dt;
+    
+    static float last_wz=0;//上一次计算时的底盘速度
 
     if (chassis_cmd_recv.chassis_mode == CHASSIS_ZERO_FORCE)
     { // 如果出现重要模块离线或遥控器设置为急停,让电机停止
@@ -372,15 +356,11 @@ void ChassisTask()
         DJIMotorEnable(motor_lb);
         DJIMotorEnable(motor_rb);
     }
-
-    static float sin_theta, cos_theta;
     cos_theta = arm_cos_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
     sin_theta = arm_sin_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
     
-    static uint32_t dt_feet_cnt=0;
-    
-    static float last_wz=0;
-    float wz_dt = DWT_GetDeltaT(&dt_feet_cnt);
+    //用于底盘旋转速度缓加
+    wz_dt = DWT_GetDeltaT(&dt_feet_cnt);
 
     // 根据控制模式设定旋转速度
     switch (chassis_cmd_recv.chassis_mode)
@@ -424,12 +404,11 @@ void ChassisTask()
     default:
         break;
     }
-
-    last_wz=chassis_cmd_recv.wz;
+    last_wz=chassis_cmd_recv.wz;//记录上次计算时旋转速度用于滤波
 
     // 根据云台和底盘的角度offset将控制量映射到底盘坐标系上
-    // 底盘逆时针旋转为角度正方向;云台命令的方向以云台指向的方向为x,采用右手系(x指向正北时y在正东)
-
+    // 底盘逆时针旋转为角度正方向;
+    // 底盘向前为y轴正方向,向左为x轴正方向
     chassis_vx = chassis_cmd_recv.vx * cos_theta - chassis_cmd_recv.vy * sin_theta;
     chassis_vy = chassis_cmd_recv.vx * sin_theta + chassis_cmd_recv.vy * cos_theta;
 
@@ -446,12 +425,7 @@ void ChassisTask()
     // 根据电机的反馈速度和IMU(如果有)计算真实速度
     EstimateSpeed();
 
-    // // 获取裁判系统数据   建议将裁判系统与底盘分离，所以此处数据应使用消息中心发送
-    // // 我方颜色id小于7是红色,大于7是蓝色,注意这里发送的是对方的颜色, 0:blue , 1:red
     chassis_feedback_data.enemy_color = referee_data->GameRobotState.robot_id > 7 ? 2 : 1;
-    // // 当前只做了17mm热量的数据获取,后续根据robot_def中的宏切换双枪管和英雄42mm的情况
-    // chassis_feedback_data.bullet_speed = referee_data->GameRobotState.shooter_id1_17mm_speed_limit;
-    // chassis_feedback_data.rest_heat = referee_data->PowerHeatData.shooter_heat0;
 
     chassis_feedback_data.real_level = referee_data->GameRobotState.robot_level;
     chassis_feedback_data.chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
