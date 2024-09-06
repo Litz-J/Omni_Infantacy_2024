@@ -256,8 +256,6 @@ void DJIMotorControl()
         motor_controller = &motor->motor_controller;
         measure = &motor->measure;
         pid_ref = motor_controller->pid_ref; // 保存设定值,防止motor_controller->pid_ref在计算过程中被修改
-        
-        //pid_ref*=motor_controller->ref_zoom_coeff;
 
         if (motor_setting->motor_reverse_flag == MOTOR_DIRECTION_REVERSE)
             pid_ref *= -1; // 设置反转
