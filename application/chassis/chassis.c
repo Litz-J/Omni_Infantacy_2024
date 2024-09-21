@@ -90,22 +90,22 @@ void ChassisInit()
         .motor_type = M3508,
     };
     //  @todo: 当前还没有设置电机的正反转,仍然需要手动添加reference的正负号,需要电机module的支持,待修改.
-    chassis_motor_config.can_init_config.tx_id = 1;
+    chassis_motor_config.can_init_config.tx_id = 2;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_lf = DJIMotorInit(&chassis_motor_config);
     chassis_motor_instance[0] = motor_lf;
 
-    chassis_motor_config.can_init_config.tx_id = 4;
+    chassis_motor_config.can_init_config.tx_id = 1;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_rf = DJIMotorInit(&chassis_motor_config);
     chassis_motor_instance[1] = motor_rf;
 
-    chassis_motor_config.can_init_config.tx_id = 2;
+    chassis_motor_config.can_init_config.tx_id = 3;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_lb = DJIMotorInit(&chassis_motor_config);
     chassis_motor_instance[2] = motor_lb;
 
-    chassis_motor_config.can_init_config.tx_id = 3;
+    chassis_motor_config.can_init_config.tx_id = 4;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_rb = DJIMotorInit(&chassis_motor_config);
     chassis_motor_instance[3] = motor_rb;
@@ -371,7 +371,7 @@ void ChassisTask()
         {
             chassis_cmd_recv.offset_angle -= 360;
         }
-        chassis_cmd_recv.wz = -0.5f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        chassis_cmd_recv.wz = -0.9f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
     case CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL:
         // 直接把offset加个45度即可
@@ -382,7 +382,7 @@ void ChassisTask()
         {
             chassis_cmd_recv.offset_angle -= 360;
         }
-        chassis_cmd_recv.wz = -0.5f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        chassis_cmd_recv.wz = -0.9f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
 
     case CHASSIS_ROTATE: // 自旋,同时保持全向机动;当前wz维持定值,后续增加不规则的变速策略
@@ -407,6 +407,8 @@ void ChassisTask()
 
     chassis_vx = chassis_cmd_recv.vx * cos_theta - chassis_cmd_recv.vy * sin_theta;
     chassis_vy = chassis_cmd_recv.vx * sin_theta + chassis_cmd_recv.vy * cos_theta;
+
+    //chassis_vx=0;
 
     // 根据控制模式进行正运动学解算,计算底盘输出
     MecanumCalculate();
