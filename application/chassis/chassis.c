@@ -68,8 +68,8 @@ void ChassisInit()
         .controller_param_init_config = {
             .speed_PID = {
                 .Kp = 0.85,   // 4.5
-                .Ki = 0.08,   // 0
-                .Kd = 0.0002, // 0
+                .Ki = 0.00,   // 0
+                .Kd = 0.0000, // 0
                 .IntegralLimit = 2000,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .MaxOut = 12000,
@@ -234,10 +234,14 @@ static void LimitChassisOutput()
         chassis_power_limit = 100;
     }
 
+    chassis_power_limit=400;
+
     // 根据缓冲能量和当前功率限制，计算最大功率值
     chassis_power_offset = -1 * CHASSIS_POWER_COFFICIENT * (chassis_power_limit)-0;
 
     chassis_power_max = chassis_power_limit + chassis_power_offset;
+
+
 
     if (isLowBuffer)
     {

@@ -58,7 +58,8 @@
         "can.h": "c",
         "freertos.h": "c",
         "ui_types.h": "c",
-        "ins_task.h": "c"
+        "ins_task.h": "c",
+        "seasky_protocol.h": "c"
     },
     // "clangd.arguments": [
     //     "-query-driver=C:/msys64/mingw64/bin/arm-none-eabi-*.exe",
