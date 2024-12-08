@@ -224,23 +224,27 @@ static void RemoteControlSet()
 static void RemoteShootSet()
 {
     shoot_cmd_send.shoot_rate = 4;
+    //右上默认状态
     chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
-        gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
-        shoot_cmd_send.friction_mode = FRICTION_OFF;
-        shoot_cmd_send.load_mode=LOAD_STOP;
-        gimbal_cmd_send.lid_mode=LID_CLOSE;
+    gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+    shoot_cmd_send.friction_mode = FRICTION_OFF;
+    shoot_cmd_send.load_mode=LOAD_STOP;
+    gimbal_cmd_send.lid_mode=LID_CLOSE;
+
     if (switch_is_mid(rc_data[TEMP].rc.switch_right)) 
     {
         shoot_cmd_send.friction_mode = FRICTION_ON;
         shoot_cmd_send.load_mode=LOAD_STOP;
         gimbal_cmd_send.lid_mode=LID_OPEN;
     }
-    if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],小陀螺
+    if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],
     {
         shoot_cmd_send.friction_mode = FRICTION_ON;
         shoot_cmd_send.load_mode=LOAD_BURSTFIRE;
         gimbal_cmd_send.lid_mode=LID_CLOSE;
     }
+    gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_;
+    gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1;
 }
 
 float chassis_speed_mouse=0;//十级10000
