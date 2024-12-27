@@ -264,6 +264,9 @@ static void MouseKeySet()
     chassis_rotate_speed_mouse=2000;
     chassis_fastrotate_speed_mouse=2500;
 
+    //debug模式，超快
+    chassis_speed_mouse=1.0;
+
     //通过最大能量功率最大速度，都是待测
     if(chassis_power_limit>=40)
     {
@@ -295,29 +298,7 @@ static void MouseKeySet()
         chassis_rotate_speed_mouse=5000;
         chassis_fastrotate_speed_mouse=8500;
     }
-    //通过等级限制功率，感觉不如通过能量限制功率
-    // switch(level)
-    // {
-    //     default:
-    //     case 1:
-    //     case 2:
-    //     case 3:
-    //         chassis_speed_mouse=5000;
-    //         break;
-    //     case 4:
-    //     case 5:
-    //     case 6:
-    //         chassis_speed_mouse=7500;
-    //         break;
-    //     case 7:
-    //     case 8:
-    //         chassis_speed_mouse=10000;
-    //         break;
-    //     case 9:
-    //     case 10:
-    //         chassis_speed_mouse=11000;
-    //         break;
-    // }
+
     chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w *  chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].s * chassis_speed_mouse; // 系数待测
     chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].d * chassis_speed_mouse;
 
