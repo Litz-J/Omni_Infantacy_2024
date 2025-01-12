@@ -51,6 +51,7 @@ static void VisionOfflineCallback(void *id)
     recv_data.move.vx=0;
     recv_data.move.vy=0;
     recv_data.move.wz=0;
+    recv_data.encoder=0;
 #ifdef VISION_USE_UART
     USARTServiceInit(vision_usart_instance);
 #endif // !VISION_USE_UART
@@ -70,9 +71,9 @@ union
         int16_t vx,vy,wz;
         float pitch,yaw;
         uint8_t key[4];
-        uint8_t tail[2];
+        int32_t encoder;
     }data;
-    uint8_t buff[22];
+    uint8_t buff[24];
 }datatoreceive;
 
 #pragma pack()
@@ -87,38 +88,10 @@ static void DecodeVision()
     DaemonReload(vision_daemon_instance); // 喂狗
     if(1)
     {
-            // // 解析数据
-            // if(vision_usart_instance->recv_buff[0]==0x57&&vision_usart_instance->recv_buff[1]== 0x04 &&vision_usart_instance->recv_buff[8]==0xAE&&vision_usart_instance->recv_buff[9]==0x08)
-            // {
-            //     static float last_yaw[10], last_pitch[10];
-            //     for(int i=1;i<10;i++)
-            //     {
-            //         last_yaw[i]=last_yaw[i-1];
-            //         last_pitch[i]=last_pitch[i-1];
-            //     }
-            //     last_yaw[0]=recv_data.yaw;
-            //     last_pitch[0]=recv_data.pitch;
-            //     // 解码
-            //     //25 00 91 FF 00 00
-            //     recv_data.yaw = (int16_t)(vision_usart_instance->recv_buff[3]<<8|vision_usart_instance->recv_buff[2]);
-            //     recv_data.pitch = (int16_t)(vision_usart_instance->recv_buff[5]<<8|vision_usart_instance->recv_buff[4]);
-                
-            //     for(int i=2;i<10;i++)
-            //     {
-            //         if(recv_data.yaw!=last_yaw[i]&&recv_data.pitch!=last_pitch[i])
-            //         {
-            //             recv_data.target_state=READY_TO_FIRE;
-            //             break;
-            //         }
-            //         if(i==9)
-            //             recv_data.target_state=NO_TARGET;
-            //     }
-                
-            // }
             static float last_pitch,last_yaw;
             memcpy(datatoreceive.buff, vision_usart_instance->recv_buff, sizeof(datatoreceive.buff));
 
-            if(datatoreceive.data.head[0]== 0xAE &&datatoreceive.data.head[1]== 0xAE &&datatoreceive.data.tail[0]== 0xEA &&datatoreceive.data.tail[1]== 0xEA )
+            if(datatoreceive.data.head[0]== 0xAE &&datatoreceive.data.head[1]== 0xAE )
             {
                 if(master_is_lost)
                 {
@@ -139,9 +112,8 @@ static void DecodeVision()
                 {
                     recv_data.key[i]=!datatoreceive.data.key[i];
                 }
-                
 
-                
+                recv_data.encoder=datatoreceive.data.encoder;
 
                 //recv_data.chassis_mode=(uint8_t)vision_usart_instance->recv_buff[17];
                 
