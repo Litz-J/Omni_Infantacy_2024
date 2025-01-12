@@ -53,3 +53,4 @@ build
 .vscode/.cortex-debug.registers.state.json
 *.jdebug*
 /.idea
+/cmake-build-debug-ninja-arm/
