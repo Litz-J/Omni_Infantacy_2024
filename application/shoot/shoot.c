@@ -56,16 +56,16 @@ void ShootInit()
                 .Ki = 15, // 1
                 .Kd = 0.0,
                 .Improve = PID_Integral_Limit,
-                .IntegralLimit = 10000,
-                .MaxOut = 15000,
+                .IntegralLimit = 5000,
+                .MaxOut = 10000,
             },
             .current_PID = {
                 .Kp = 0.8, // 0.7
                 .Ki = 0.125, // 0.1
                 .Kd = 0,
                 .Improve = PID_Integral_Limit,
-                .IntegralLimit = 10000,
-                .MaxOut = 15000,
+                .IntegralLimit = 8000,
+                .MaxOut = 12000,
             },
         },
         .controller_setting_init_config = {
@@ -137,7 +137,7 @@ void ShootInit()
 
 float speedref=0;
 float torque2006 ;
-float fric_v=45500;
+float fric_v=42000;
 //48000,31m/s
 //44500,26.7m/s
 
@@ -255,21 +255,13 @@ void ShootTask()
         // 根据收到的弹速设置设定摩擦轮电机参考值,需实测后填入
         switch (shoot_cmd_recv.bullet_speed)
         {
-        case SMALL_AMU_15:
-            DJIMotorSetRef(friction_l, 0);
-            DJIMotorSetRef(friction_r, 0);
-            break;
-        case SMALL_AMU_18:
-            DJIMotorSetRef(friction_l, 0);
-            DJIMotorSetRef(friction_r, 0);
-            break;
-        case SMALL_AMU_30:
+        case SMALL_AMU_25:
             DJIMotorSetRef(friction_l, fric_v);
             DJIMotorSetRef(friction_r, fric_v);
             break;
         default: // 当前为了调试设定的默认值4000,因为还没有加入裁判系统无法读取弹速.
-            DJIMotorSetRef(friction_l, fric_v);
-            DJIMotorSetRef(friction_r, fric_v);
+            DJIMotorSetRef(friction_l, 5000);
+            DJIMotorSetRef(friction_r, 5000);
             break;
         }
         shoot_feedback_data.shoot_status=SHOOT_READY;

@@ -4,8 +4,8 @@
 #include "bsp_usart.h"
 #include "seasky_protocol.h"
 
-#define VISION_RECV_SIZE 10u // 当前为固定值,36字节
-#define VISION_SEND_SIZE 36u
+#define VISION_RECV_SIZE 30u // 当前为固定值,36字节
+#define VISION_SEND_SIZE 28u
 
 #pragma pack(1)
 typedef enum
@@ -62,11 +62,8 @@ typedef enum
 typedef enum
 {
 	BULLET_SPEED_NONE = 0,
-	BIG_AMU_10 = 10,
-	SMALL_AMU_15 = 15,
 	BIG_AMU_16 = 16,
-	SMALL_AMU_18 = 18,
-	SMALL_AMU_30 = 30,
+	SMALL_AMU_25= 25,
 } Bullet_Speed_e;
 
 typedef struct

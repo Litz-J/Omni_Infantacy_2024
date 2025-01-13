@@ -1,0 +1,29 @@
+
+
+OpenDocument="OmniStandard.jdebug", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024_Hero/OmniStandard.jdebug", Line=0
+OpenDocument="bsp_dwt.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/bsp/dwt/bsp_dwt.c", Line=62
+OpenDocument="main.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/Src/main.c", Line=60
+OpenDocument="chassis.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/application/chassis/chassis.c", Line=183
+OpenDocument="startup_stm32f407xx.s", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/startup_stm32f407xx.s", Line=42
+OpenToolbar="Debug", Floating=0, x=0, y=0
+OpenWindow="Call Stack", DockArea=RIGHT, x=0, y=0, w=793, h=346, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Disassembly", DockArea=RIGHT, x=0, y=2, w=793, h=276, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=1, w=768, h=749, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Data Sampling", DockArea=LEFT, x=0, y=0, w=768, h=549, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VisibleTab=0, UniformSampleSpacing=0
+OpenWindow="Timeline", DockArea=RIGHT, x=0, y=1, w=793, h=675, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=1, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="1 ns / Div", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="557;325", DataGraphShowNamesAtCursor=0, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="70;20", CodeGraphLegendShown=0, CodeGraphLegendPosition="80;20"
+SmartViewPlugin="", Page="", Toolbar="Hidden", Window="SmartView 1"
+TableHeader="Call Stack", SortCol="Function", SortOrder="ASCENDING", VisibleCols=["Function";"Stack Frame";"Source";"PC";"Return Address";"Stack Used"], ColWidths=[148;131;126;100;140;148]
+TableHeader="Data Sampling Table", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time"], ColWidths=[100;100]
+TableHeader="Data Sampling Setup", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Type";"Value";"Min";"Max";"Average";"# Changes";"Min. Change";"Max. Change"], ColWidths=[388;100;100;100;100;100;100;113;113]
+TableHeader="Power Sampling", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";"Ch 0"], ColWidths=[100;100;100]
+TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Location";"Refresh"], ColWidths=[259;213;166;130]
+TableHeader="RegisterSelectionDialog", SortCol="None", SortOrder="ASCENDING", VisibleCols=[], ColWidths=[]
+TableHeader="TargetExceptionDialog", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Address";"Description"], ColWidths=[200;100;100;359]
+WatchedExpression="yaw_motor", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="pitch_motor", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="motor_lf", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="chassis_cmd_recv", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="vt_lf", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="vt_rf", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="chassis_cmd_recv", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="chassis_power_max", RefreshRate=5, Window=Watched Data 1

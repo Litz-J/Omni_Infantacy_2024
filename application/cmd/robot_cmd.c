@@ -81,32 +81,32 @@ void RobotCMDInit()
     cmd_can_comm = CANCommInit(&comm_conf);
 #endif // GIMBAL_BOARD
     gimbal_cmd_send.pitch = 0;
-
-    //定义自瞄PID，没用
-    PID_Init_Config_s pid_pitch_vision_config=
-    {
-        .Kp = 0.000599999796, // 4.5
-        .Ki = 0.00135000004,  // 0
-        .Kd = 0.0,  // 0
-        .IntegralLimit = 0.6,
-        .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit,
-        .MaxOut = 1,
-        .DeadBand=3,
-    },
-    pid_yaw_vision_config=
-    {
-        .Kp = 0.000669999979, // 4.5
-        .Ki = 0.00124999997,  // 0
-        .Kd = 0.0,  // 0
-        .IntegralLimit = 10,
-        .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit,
-        .MaxOut = 20,
-        .DeadBand=10,
-    };
-    pid_pitch_vision=malloc(sizeof(PIDInstance));
-    pid_yaw_vision=malloc(sizeof(PIDInstance));
-    PIDInit(pid_pitch_vision,&pid_pitch_vision_config);
-    PIDInit(pid_yaw_vision,&pid_yaw_vision_config);
+    shoot_cmd_send.bullet_speed = SMALL_AMU_25;
+    // //定义自瞄PID，没用
+    // PID_Init_Config_s pid_pitch_vision_config=
+    // {
+    //     .Kp = 0.000599999796, // 4.5
+    //     .Ki = 0.00135000004,  // 0
+    //     .Kd = 0.0,  // 0
+    //     .IntegralLimit = 0.6,
+    //     .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit,
+    //     .MaxOut = 1,
+    //     .DeadBand=3,
+    // },
+    // pid_yaw_vision_config=
+    // {
+    //     .Kp = 0.000669999979, // 4.5
+    //     .Ki = 0.00124999997,  // 0
+    //     .Kd = 0.0,  // 0
+    //     .IntegralLimit = 10,
+    //     .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit,
+    //     .MaxOut = 20,
+    //     .DeadBand=10,
+    // };
+    // pid_pitch_vision=malloc(sizeof(PIDInstance));
+    // pid_yaw_vision=malloc(sizeof(PIDInstance));
+    // PIDInit(pid_pitch_vision,&pid_pitch_vision_config);
+    // PIDInit(pid_yaw_vision,&pid_yaw_vision_config);
 
     robot_state = ROBOT_READY; // 启动时机器人进入工作模式,后续加入所有应用初始化完成之后再进入
 }
@@ -315,18 +315,7 @@ static void MouseKeySet()
         gimbal_cmd_send.pitch=PITCH_MIN_ANGLE;
     }
 
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Z] % 3) // Z键设置弹速
-    {
-    case 0:
-        shoot_cmd_send.bullet_speed = 30;
-        break;
-    case 1:
-        shoot_cmd_send.bullet_speed = 30;
-        break;
-    default:
-        shoot_cmd_send.bullet_speed = 30;
-        break;
-    }
+
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 2) // E键设置发射模式
     {
     case 0:
@@ -578,7 +567,7 @@ void RobotCMDTask()
     EmergencyHandler(); // 处理模块离线和遥控器急停等紧急情况
 
     // 设置视觉发送数据,还需增加加速度和角速度数据
-    // VisionSetFlag(chassis_fetch_data.enemy_color,,chassis_fetch_data.bullet_speed)
+    VisionSetFlag(chassis_fetch_data.enemy_color,0,chassis_fetch_data.bullet_speed);
 
     // 推送消息,双板通信,视觉通信等
     // 其他应用所需的控制数据在remotecontrolsetmode和mousekeysetmode中完成设置
@@ -590,5 +579,7 @@ void RobotCMDTask()
 #endif // GIMBAL_BOARD
     PubPushMessage(shoot_cmd_pub, (void *)&shoot_cmd_send);
     PubPushMessage(gimbal_cmd_pub, (void *)&gimbal_cmd_send);
-    //VisionSend(&vision_send_data);
+
+    //@todo:当前数据回传频率受限于CMD任务频率。后面需要分离
+    VisionSend(&vision_send_data);
 }

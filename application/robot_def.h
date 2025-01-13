@@ -224,7 +224,7 @@ typedef struct
 
     uint8_t rest_heat;           // 剩余枪口热量
     Bullet_Speed_e bullet_speed; // 弹速限制
-    Enemy_Color_e enemy_color;   // 0 for blue, 1 for red
+    Enemy_Color_e enemy_color;   // 0 for blue, 1 for red?@Todo:检查这里说的对吗
 
 
 } Chassis_Upload_Data_s;
