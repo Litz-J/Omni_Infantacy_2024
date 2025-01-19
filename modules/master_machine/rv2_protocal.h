@@ -50,6 +50,7 @@ typedef struct
 
 #pragma pack()
 
+rv2_recv_protocol_s *rv2_protocol_init(void);
 void build_rv2_send_data(Vision_Send_s *send,uint8_t *tx_buf,uint16_t *tx_buf_len);
 void parse_rv2_receive_data(Vision_Recv_s *receive, uint8_t *rx_buf, uint16_t rx_buf_len);
 

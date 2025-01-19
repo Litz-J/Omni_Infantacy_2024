@@ -92,7 +92,7 @@ attitude_t *INS_Init(void)
     IMU_Param.scale[Y] = 1;
     IMU_Param.scale[Z] = 1;
     IMU_Param.Yaw = 0;
-    IMU_Param.Pitch = -31.3f;
+    IMU_Param.Pitch = -36.4f;
     IMU_Param.Roll = 0;
     IMU_Param.flag = 1;
 
@@ -167,7 +167,7 @@ void INS_Task(void)
         INS.Roll = QEKF_INS.Roll;
         INS.YawTotalAngle = QEKF_INS.YawTotalAngle;
 
-        VisionSetAltitude(INS.Yaw, INS.Pitch, INS.Roll);
+        VisionSetAltitude(INS.YawTotalAngle, INS.Pitch, INS.Roll);
     }
 
     // temperature control

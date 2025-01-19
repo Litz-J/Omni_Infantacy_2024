@@ -12,6 +12,7 @@
 #include "controller.h"
 #include "rm_referee.h"
 #include "user_lib.h"
+#include "rv2_trajectory.h"
 // bsp
 #include "bsp_dwt.h"
 #include "bsp_log.h"
@@ -36,6 +37,8 @@ static Chassis_Upload_Data_s chassis_fetch_data; // 从底盘应用接收的反�
 static RC_ctrl_t *rc_data;              // 遥控器数据,初始化时返回
 static Vision_Recv_s *vision_recv_data; // 视觉接收数据指针,初始化时返回
 static Vision_Send_s vision_send_data;  // 视觉发送数据
+
+
 
 static PIDInstance *pid_pitch_vision,*pid_yaw_vision;
 
@@ -82,31 +85,6 @@ void RobotCMDInit()
 #endif // GIMBAL_BOARD
     gimbal_cmd_send.pitch = 0;
     shoot_cmd_send.bullet_speed = SMALL_AMU_25;
-    // //定义自瞄PID，没用
-    // PID_Init_Config_s pid_pitch_vision_config=
-    // {
-    //     .Kp = 0.000599999796, // 4.5
-    //     .Ki = 0.00135000004,  // 0
-    //     .Kd = 0.0,  // 0
-    //     .IntegralLimit = 0.6,
-    //     .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit,
-    //     .MaxOut = 1,
-    //     .DeadBand=3,
-    // },
-    // pid_yaw_vision_config=
-    // {
-    //     .Kp = 0.000669999979, // 4.5
-    //     .Ki = 0.00124999997,  // 0
-    //     .Kd = 0.0,  // 0
-    //     .IntegralLimit = 10,
-    //     .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit,
-    //     .MaxOut = 20,
-    //     .DeadBand=10,
-    // };
-    // pid_pitch_vision=malloc(sizeof(PIDInstance));
-    // pid_yaw_vision=malloc(sizeof(PIDInstance));
-    // PIDInit(pid_pitch_vision,&pid_pitch_vision_config);
-    // PIDInit(pid_yaw_vision,&pid_yaw_vision_config);
 
     robot_state = ROBOT_READY; // 启动时机器人进入工作模式,后续加入所有应用初始化完成之后再进入
 }
@@ -173,20 +151,6 @@ static void RemoteControlSet()
         gimbal_cmd_send.lid_mode=LID_CLOSE;
         
     }
-    //自瞄，没用
-    float pitch_offset=-70;
-    float yaw_offset=0;
-    if(vision_recv_data->pitch==0 && pid_pitch_vision->Last_Measure==0)
-    {
-        pitch_offset=0;
-    }
-    else
-    {
-        pitch_offset=-70;
-    }
-    PIDCalculate(pid_pitch_vision,vision_recv_data->pitch,pitch_offset);
-    PIDCalculate(pid_yaw_vision,vision_recv_data->yaw,yaw_offset);
-
 
     // 云台参数,确定云台控制数据
     if (switch_is_mid(rc_data[TEMP].rc.switch_left)) // 左侧开关状态为[中],视觉模式
@@ -217,7 +181,7 @@ static void RemoteControlSet()
     chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r_/660.0f * chassis_speed_rocker; // _水平方向
     chassis_cmd_send.vy = (float)rc_data[TEMP].rc.rocker_r1/660.0f * chassis_speed_rocker; // 竖直方向
 
-    chassis_cmd_send.wz = 6000.0f;
+    chassis_cmd_send.wz = 3000.0f;
     shoot_cmd_send.shoot_rate = 8;
 }
 
@@ -249,6 +213,9 @@ static void RemoteShootSet()
 
 float chassis_speed_mouse=0;//十级10000
 float chassis_rotate_speed_mouse,chassis_fastrotate_speed_mouse;
+
+float temp_yaw_err;
+float temp_pitch_err;
 
 /**
  * @brief 输入为键鼠时模式和控制量设置
@@ -302,9 +269,25 @@ static void MouseKeySet()
     chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w *  chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].s * chassis_speed_mouse; // 系数待测
     chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].d * chassis_speed_mouse;
 
-    gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 6.0f; // 系数待测
-    gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 6.0f;
+    //右键开自瞄，现在需要测试
+    if(rc_data[TEMP].mouse.press_r==1)
+    {
+        gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 6.0f; // 系数待测
+        gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 6.0f;
+    }
+    else if(rc_data[TEMP].mouse.press_r==0&&
+        vision_recv_data->offline!=1&&
+        vision_recv_data->target_state==TRACKING)
+    {
+        gimbal_cmd_send.pitch = vision_recv_data->pitch;
+        gimbal_cmd_send.yaw=-vision_recv_data->yaw;
+    }
 
+
+    temp_yaw_err=vision_recv_data->yaw-gimbal_fetch_data.gimbal_imu_data.YawTotalAngle;
+    temp_pitch_err=vision_recv_data->pitch-gimbal_fetch_data.gimbal_imu_data.Pitch;
+
+    // 不可以在行代码后面再修改云台目标角度！！
     // 云台软件限位
     if(gimbal_cmd_send.pitch>=PITCH_MAX_ANGLE)
     {
@@ -334,7 +317,7 @@ static void MouseKeySet()
         
     }
     //if(rc_data[TEMP].mouse.press_l==0 | shoot_fetch_data.shoot_status != SHOOT_STOP)
-    if(rc_data[TEMP].mouse.press_l==0 && rc_data[TEMP].mouse.press_r==0)
+    if(rc_data[TEMP].mouse.press_l==0)
     {
         shoot_cmd_send.load_mode = LOAD_STOP;
         chassis_cmd_send.load_mode = LOAD_STOP;
@@ -342,14 +325,14 @@ static void MouseKeySet()
     }
     if(rc_data[TEMP].mouse.press_l==1)
     {
-        shoot_cmd_send.shoot_rate=6;
-        chassis_cmd_send.shoot_mode = SHOOT_ON;
-    }
-    else if(rc_data[TEMP].mouse.press_r==1)
-    {
         shoot_cmd_send.shoot_rate=10;
         chassis_cmd_send.shoot_mode = SHOOT_ON;
     }
+    // else if(rc_data[TEMP].mouse.press_r==1)
+    // {
+    //     shoot_cmd_send.shoot_rate=10;
+    //     chassis_cmd_send.shoot_mode = SHOOT_ON;
+    // }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Q] % 3)  //Q设置底盘模式
     {
     case 0:
@@ -548,6 +531,8 @@ void RobotCMDTask()
     chassis_speed_mouse=0;
     chassis_speed_rocker=0;
 
+    VisionTrajectory();
+
     // 根据遥控器左侧开关,确定当前使用的控制模式为遥控器调试还是键鼠
     if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
     {
@@ -561,6 +546,8 @@ void RobotCMDTask()
     {
         RemoteShootSet();
     }
+
+
 
     SpeedDistribution();
 

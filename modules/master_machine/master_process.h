@@ -3,8 +3,9 @@
 
 #include "bsp_usart.h"
 #include "seasky_protocol.h"
+#include "rv2_trajectory.h"
 
-#define VISION_RECV_SIZE 30u // 当前为固定值,36字节
+#define VISION_RECV_SIZE 48u // 当前为固定值,36字节
 #define VISION_SEND_SIZE 28u
 
 #pragma pack(1)
@@ -18,7 +19,7 @@ typedef enum
 typedef enum
 {
 	NO_TARGET = 0,
-	TARGET_CONVERGING = 1,
+	TRACKING = 1,
 	READY_TO_FIRE = 2
 } Target_State_e;
 
@@ -43,6 +44,9 @@ typedef struct
 
 	float pitch;
 	float yaw;
+
+	uint8_t offline;
+	//trajectory_target_s *target;
 } Vision_Recv_s;
 
 typedef enum
@@ -75,6 +79,12 @@ typedef struct
 	float yaw;
 	float pitch;
 	float roll;
+
+	float aim_x;
+	float aim_y;
+	float aim_z;
+
+
 } Vision_Send_s;
 #pragma pack()
 
@@ -107,5 +117,8 @@ void VisionSetFlag(Enemy_Color_e enemy_color, Work_Mode_e work_mode, Bullet_Spee
  * @param pitch
  */
 void VisionSetAltitude(float yaw, float pitch, float roll);
+
+//进行弹道解算
+void VisionTrajectory();
 
 #endif // !MASTER_PROCESS_H

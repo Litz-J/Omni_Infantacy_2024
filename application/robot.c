@@ -47,14 +47,26 @@ void RobotInit()
 
 void RobotTask()
 {
-#if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
-    RobotCMDTask();
-    GimbalTask();
-    ShootTask();
-#endif
+    static uint32_t robot_counter;
 
+    if(robot_counter%1==0)
+    {
+        //500hz
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
-    ChassisTask();
+        ChassisTask();
 #endif
+    }
+
+    if(robot_counter%2==0)
+    {
+        //250hz
+#if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
+        RobotCMDTask();
+        GimbalTask();
+        ShootTask();
+#endif
+    }
+
+    robot_counter++;
 
 }

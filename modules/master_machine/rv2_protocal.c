@@ -4,8 +4,19 @@
 
 #include "rv2_protocal.h"
 
+#include <bsp_log.h>
 #include <crc16.h>
 #include <string.h>
+
+static uint8_t send_color;
+
+static rv2_recv_protocol_s rv2_recv_data={0};
+
+rv2_recv_protocol_s *rv2_protocol_init(void)
+{
+    memset(&rv2_recv_data,0,sizeof(rv2_recv_data));
+    return &rv2_recv_data;
+}
 
 void build_rv2_send_data(Vision_Send_s *send,uint8_t *tx_buf,uint16_t *tx_buf_len)
 {
@@ -16,13 +27,19 @@ void build_rv2_send_data(Vision_Send_s *send,uint8_t *tx_buf,uint16_t *tx_buf_le
         .aim_y = 0,
         .aim_z = 0};
 
-    // 姿态部分
+    // // 姿态部分
     rv2_send_data.roll=send->roll;
     rv2_send_data.pitch=send->pitch;
     rv2_send_data.yaw=send->yaw;
     //对局信息部分
-    rv2_send_data.detect_color=send->enemy_color==COLOR_RED ? 0 : 1;          //0为红，1为蓝
-    rv2_send_data.reset_tracker=0;
+    rv2_send_data.detect_color=send->enemy_color==COLOR_RED ? 1 : 0;          //自身颜色0为红，1为蓝
+    rv2_send_data.detect_color=send_color;
+
+    // rv2_send_data.reset_tracker=0;
+
+    rv2_send_data.aim_x=send->aim_x;
+    rv2_send_data.aim_y=send->aim_y;
+    rv2_send_data.aim_z=send->aim_z;
 
     //CRC校验
     rv2_send_data.checksum=crc_16((uint8_t *)&rv2_send_data,sizeof(rv2_send_data)-2);
@@ -34,5 +51,25 @@ void build_rv2_send_data(Vision_Send_s *send,uint8_t *tx_buf,uint16_t *tx_buf_le
 
 void parse_rv2_receive_data(Vision_Recv_s *receive, uint8_t *rx_buf, uint16_t rx_buf_len)
 {
-
+    //包头校验
+    if(rx_buf[0]==0xA5)
+    {
+        //CRC校验
+        uint16_t checksum=crc_16(rx_buf,rx_buf_len-2);
+        if(rx_buf[rx_buf_len-1]==((checksum&0xFF00)>>8)&&(rx_buf[rx_buf_len-2]==(checksum&0x00FF)))
+        {
+            memcpy(&rv2_recv_data,rx_buf,sizeof(rv2_recv_data));
+            receive->target_state=rv2_recv_data.tracking;
+        }
+        else
+        {
+            LOGERROR("RV2 Receive checksum error");
+            return;
+        }
+    }
+    else
+    {
+        LOGERROR("RV2 Receive Header error");
+        return;
+    }
 }
