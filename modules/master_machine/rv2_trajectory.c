@@ -169,6 +169,16 @@ void autoSolveTrajectory(float *pitch, float *yaw, float *aim_x, float *aim_y, f
 
         //TODO 选择最优装甲板 选板逻辑你们自己写，这个一般给英雄用
 
+        //暂时套用击打普通4装甲的代码
+        float yaw_diff_min = fabsf(*yaw - tar_position[0].yaw);
+        for (i = 1; i<3; i++) {
+            float temp_yaw_diff = fabsf(*yaw - tar_position[i].yaw);
+            if (temp_yaw_diff < yaw_diff_min)
+            {
+                yaw_diff_min = temp_yaw_diff;
+                idx = i;
+            }
+        }
 
     } else {
 
@@ -202,7 +212,7 @@ void autoSolveTrajectory(float *pitch, float *yaw, float *aim_x, float *aim_y, f
         //
 
             //计算枪管到目标装甲板yaw最小的那个装甲板
-            //Todo:*yaw似乎并非实际yaw！
+            //Todo:*yaw似乎并非实际yaw。但是也可以用，因为这样跟踪效果较好，而且切换较快
         float yaw_diff_min = fabsf(*yaw - tar_position[0].yaw);
         for (i = 1; i<4; i++) {
             float temp_yaw_diff = fabsf(*yaw - tar_position[i].yaw);
