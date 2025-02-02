@@ -5,6 +5,8 @@
 #ifndef RV2_TRAJECTORY_H
 #define RV2_TRAJECTORY_H
 
+#include "rv2_protocal.h"
+
 #ifndef PI
 #define PI 3.1415926535f
 #endif
@@ -94,12 +96,12 @@ extern float monoDirectionalAirResistanceModel(float s, float v, float angle);
 //完全空气阻力模型
 extern float completeAirResistanceModel(float s, float v, float angle);
 //pitch弹道补偿
-extern float pitchTrajectoryCompensation(float s, float y, float v);
+extern float pitchTrajectoryCompensation(float s, float z, float v);
 //根据最优决策得出被击打装甲板 自动解算弹道
 extern void autoSolveTrajectory(float *pitch, float *yaw, float *aim_x, float *aim_y, float *aim_z);
 
-//设定参数，1是上位机发的目标；2是自身yaw、pitch
-void rv2_trajectory_passin(float *param1,float *param2);
+//设定参数，1是上位机发的数据；2是自身yaw、pitch;3是目标相关参数@Todo：当前实现太抽象了。
+void rv2_trajectory_passin(rv2_recv_protocol_s *param1,float *param2);
 
 trajectory_target_s *rv2_trajectory_init();
 void rv2_trajectory_calculate();

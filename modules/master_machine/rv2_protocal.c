@@ -60,6 +60,27 @@ void parse_rv2_receive_data(Vision_Recv_s *receive, uint8_t *rx_buf, uint16_t rx
         {
             memcpy(&rv2_recv_data,rx_buf,sizeof(rv2_recv_data));
             receive->target_state=rv2_recv_data.tracking;
+            //判别识别号码和装甲板数量，属于为了兼容的转换性设置
+            switch (rv2_recv_data.id) {
+                case 0:
+                    receive->target_type = OUTPOST;
+                    break;
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                    receive->target_type = rv2_recv_data.id;
+                    break;
+                case 6:
+                    receive->target_type = SENTRY;
+                    break;
+                case 7:
+                    receive->target_type = BASE;
+                    break;
+                default:
+                    break;
+            }
         }
         else
         {

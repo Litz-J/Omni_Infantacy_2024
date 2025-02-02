@@ -5,7 +5,6 @@
 #ifndef RV2_PROTOCAL_H
 #define RV2_PROTOCAL_H
 #include "master_process.h"
-#include "main.h"
 #include "stdbool.h"
 
 #define RV2_PROTOCAL_HEADER 0x5A
@@ -36,7 +35,7 @@ typedef struct
     uint8_t reserved :1;
     float x;
     float y;
-    float Z;
+    float z;
     float yaw;
     float vx;
     float vy;

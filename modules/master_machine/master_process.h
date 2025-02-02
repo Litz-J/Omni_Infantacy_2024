@@ -2,8 +2,8 @@
 #define MASTER_PROCESS_H
 
 #include "bsp_usart.h"
-#include "seasky_protocol.h"
-#include "rv2_trajectory.h"
+
+
 
 #define VISION_RECV_SIZE 48u // 当前为固定值,36字节
 #define VISION_SEND_SIZE 28u

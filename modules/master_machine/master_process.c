@@ -26,7 +26,7 @@ static trajectory_target_s *trajectory;
 
 //用于低通滤波的时间参数
 static float trajectory_pitch_LPF_RC=0.012;
-static float trajectory_yaw_LPF_RC=0.03;
+static float trajectory_yaw_LPF_RC=0.02;
 
 void VisionSetFlag(Enemy_Color_e enemy_color, Work_Mode_e work_mode, Bullet_Speed_e bullet_speed)
 {
@@ -85,42 +85,8 @@ static void DecodeVision()
 
     parse_rv2_receive_data(&recv_data,vision_usart_instance->recv_buff,VISION_RECV_SIZE);
 
-    rv2_trajectory_passin(&rv2_recv->x,&send_data.yaw);
+    rv2_trajectory_passin(rv2_recv,&send_data.yaw);
 
-
-    if(1)
-    {
-            // // 解析数据
-            // if(vision_usart_instance->recv_buff[0]==0x57&&vision_usart_instance->recv_buff[1]== 0x04 &&vision_usart_instance->recv_buff[8]==0xAE&&vision_usart_instance->recv_buff[9]==0x08)
-            // {
-            //     static float last_yaw[10], last_pitch[10];
-            //     for(int i=1;i<10;i++)
-            //     {
-            //         last_yaw[i]=last_yaw[i-1];
-            //         last_pitch[i]=last_pitch[i-1];
-            //     }
-            //     last_yaw[0]=recv_data.yaw;
-            //     last_pitch[0]=recv_data.pitch;
-            //     // 解码
-            //     //25 00 91 FF 00 00
-            //     recv_data.yaw = (int16_t)(vision_usart_instance->recv_buff[3]<<8|vision_usart_instance->recv_buff[2]);
-            //     recv_data.pitch = (int16_t)(vision_usart_instance->recv_buff[5]<<8|vision_usart_instance->recv_buff[4]);
-                
-            //     for(int i=2;i<10;i++)
-            //     {
-            //         if(recv_data.yaw!=last_yaw[i]&&recv_data.pitch!=last_pitch[i])
-            //         {
-            //             recv_data.target_state=READY_TO_FIRE;
-            //             break;
-            //         }
-            //         if(i==9)
-            //             recv_data.target_state=NO_TARGET;
-            //     }
-                
-            // }
-            
-    }
-    //get_protocol_info(vision_usart_instance->recv_buff, &flag_register, (uint8_t *)&recv_data.pitch);
     // TODO: code to resolve flag_register;
 }
 
@@ -188,6 +154,7 @@ void VisionTrajectory()
     //@todo:将自瞄计算放到合适位置
     rv2_trajectory_calculate();
 
+    //自瞄数据过一个低通滤波
     recv_data.pitch=is_lost?last_pitch:trajectory->pitch*RAD_2_DEGREE;
     recv_data.pitch =
         recv_data.pitch * trajectory_dt /(trajectory_pitch_LPF_RC + trajectory_dt) +

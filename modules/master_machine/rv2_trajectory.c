@@ -98,8 +98,8 @@ float pitchTrajectoryCompensation(float s, float z, float v)
         }
         dz = 0.3*(z - z_actual);
         z_temp = z_temp + dz;
-        printf("iteration num %d: angle_pitch %f, temp target z:%f, err of z:%f, s:%f\n",
-            i + 1, angle_pitch * 180 / PI, z_temp, dz,s);
+        // printf("iteration num %d: angle_pitch %f, temp target z:%f, err of z:%f, s:%f\n",
+        //     i + 1, angle_pitch * 180 / PI, z_temp, dz,s);
         if (fabsf(dz) < 0.00001)
         {
             break;
@@ -118,12 +118,13 @@ float pitchTrajectoryCompensation(float s, float z, float v)
 */
 void autoSolveTrajectory(float *pitch, float *yaw, float *aim_x, float *aim_y, float *aim_z)
 {
-
     // 线性预测
     float timeDelay = st.bias_time/1000.0 + t;
     st.tar_yaw += st.v_yaw * timeDelay;
 
     //计算四块装甲板的位置
+    //反馈数据只会反馈最前面识别到的一块装甲板位置，但是我们可以通过这个识别的装甲板位置和r1/r2来推算其他装甲板位置，从而实现瞄准决策！
+
     //装甲板id顺序，以四块装甲板为例，逆时针编号
     //      2
     //   3     1
@@ -131,6 +132,9 @@ void autoSolveTrajectory(float *pitch, float *yaw, float *aim_x, float *aim_y, f
 	int use_1 = 1;
 	int i = 0;
     int idx = 0; // 选择的装甲板
+
+    //根据装甲板数量切换目标击打方式
+
     //armor_num = ARMOR_NUM_BALANCE 为平衡步兵
     if (st.armor_num == ARMOR_NUM_BALANCE) {
         for (i = 0; i<2; i++) {
@@ -168,6 +172,7 @@ void autoSolveTrajectory(float *pitch, float *yaw, float *aim_x, float *aim_y, f
 
     } else {
 
+        //普通步兵
         for (i = 0; i<4; i++) {
             float tmp_yaw = st.tar_yaw + i * PI/2.0;
             float r = use_1 ? st.r1 : st.r2;
@@ -197,6 +202,7 @@ void autoSolveTrajectory(float *pitch, float *yaw, float *aim_x, float *aim_y, f
         //
 
             //计算枪管到目标装甲板yaw最小的那个装甲板
+            //Todo:*yaw似乎并非实际yaw！
         float yaw_diff_min = fabsf(*yaw - tar_position[0].yaw);
         for (i = 1; i<4; i++) {
             float temp_yaw_diff = fabsf(*yaw - tar_position[i].yaw);
@@ -209,7 +215,7 @@ void autoSolveTrajectory(float *pitch, float *yaw, float *aim_x, float *aim_y, f
 
     }
 
-
+    //对选择的装甲板进行击打目标计算
 
     *aim_z = tar_position[idx].z + st.vzw * timeDelay;
     *aim_x = tar_position[idx].x + st.vxw * timeDelay;
@@ -231,27 +237,26 @@ float yaw = 0;   //输出控制量 yaw绝对角度 弧度
 
 trajectory_target_s *rv2_trajectory_init()
 {
-
     //定义参数
     st.k = 0.092;
     st.bullet_type =  BULLET_17;
     st.current_v = 21;//18
     st.current_pitch = 0;
     st.current_yaw = 0;
-    st.xw = 3.0;
-    // st.yw = 0.0159;
+    st.xw = 0.0;
     st.yw = 0;
-    // st.zw = -0.2898;
-    st.zw = 1.5;
+    st.zw = 0;
 
     st.vxw = 0;
     st.vyw = 0;
     st.vzw = 0;
     st.v_yaw = 0;
-    st.tar_yaw = 0.09131;
-    st.r1 = 0.5;
-    st.r2 = 0.5;
-    st.dz = 0.1;
+    st.tar_yaw = 0;
+    st.r1 = 0;
+    st.r2 = 0;
+    st.dz = 0;
+
+    //以下设置参数
     st.bias_time = 100;
     st.s_bias = 0.02;  //0.2
     st.z_bias = 0.07;   //0.19
@@ -264,27 +269,31 @@ trajectory_target_s *rv2_trajectory_init()
     return &trajectory_target;
 }
 
-void rv2_trajectory_passin(float *param1,float *param2)
+void rv2_trajectory_passin(rv2_recv_protocol_s *param1,float *param2)
 {
-    st.xw = param1[0];
-    st.yw = param1[1];
-    st.zw = param1[2];
-    st.tar_yaw =param1[3];
-    st.vxw = param1[4];
-    st.vyw = param1[5];
-    st.vzw = param1[6];
-    st.v_yaw = param1[7];
-    st.r1 = param1[8];
-    st.r2 = param1[9];
-    st.dz = param1[10];
+    st.xw = param1->x;
+    st.yw = param1->y;
+    st.zw = param1->dz;
+    st.tar_yaw = param1->yaw;
+    st.vxw = param1->vx;
+    st.vyw = param1->vy;
+    st.vzw = param1->vz;
+    st.v_yaw = param1->v_yaw;
+    st.r1 = param1->r1;
+    st.r2 = param1->r2;
+    st.dz = param1->dz;
+
+    st.armor_id=param1->id;
+    st.armor_num=param1->armors_num;
 
     st.current_pitch=param2[1];
     st.current_yaw = param2[0];
+
+
 }
 
 void rv2_trajectory_calculate()
 {
-    //设置值
 
     //预测
     autoSolveTrajectory(&pitch, &yaw, &aim_x, &aim_y, &aim_z);
