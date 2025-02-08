@@ -54,3 +54,4 @@ build
 *.jdebug*
 /.idea
 /cmake-build-debug-ninja-arm/
+/cmake-build-debug/
