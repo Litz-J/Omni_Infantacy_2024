@@ -100,7 +100,7 @@ static void CalcOffsetAngle()
     static float angle;
     angle = gimbal_fetch_data.yaw_motor_single_round_angle; // 从云台获取的当前yaw电机单圈角度
 #if YAW_ECD_GREATER_THAN_4096                               // 如果大于180度
-    if (angle > YAW_ALIGN_ANGLE && angle <= 180.0f + YAW_ALIGN_ANGLE)
+        if (angle > YAW_ALIGN_ANGLE && angle <= 180.0f + YAW_ALIGN_ANGLE)
         chassis_cmd_send.offset_angle = angle - YAW_ALIGN_ANGLE;
     else if (angle > 180.0f + YAW_ALIGN_ANGLE)
         chassis_cmd_send.offset_angle = angle - YAW_ALIGN_ANGLE - 360.0f;
@@ -175,7 +175,7 @@ static void RemoteControlSet()
         gimbal_cmd_send.pitch=PITCH_MIN_ANGLE;
     }
 
-    chassis_speed_rocker=1;
+    chassis_speed_rocker=2;
 
     // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
     chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r_/660.0f * chassis_speed_rocker; // _水平方向

@@ -53,7 +53,9 @@ static DJIMotorInstance *chassis_motor_instance[4];
 
 /* 用于自旋变速策略的时间变量 */
 // static float t;
-float wz_LPF_RC=0.35;
+static float wz_LPF_RC=0.15;
+
+static float angle_align;              //对齐用的角度
 
 /* 私有函数计算的中介变量,设为静态避免参数传递的开销 */
 static float chassis_vx, chassis_vy;     // 将云台系的速度投影到底盘
@@ -67,12 +69,12 @@ void ChassisInit()
         .can_init_config.can_handle = &hcan1,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp = 0.85,   // 4.5
-                .Ki = 0.00,   // 0
+                .Kp = 0.95,   // 4.5
+                .Ki = 0.01,   // 0
                 .Kd = 0.0000, // 0
-                .IntegralLimit = 2000,
+                .IntegralLimit = 2500,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-                .MaxOut = 12000,
+                .MaxOut = 12000,//12000
             },
             .current_PID = {//没啥用
                 .Kp = 0.8,  // 0.4
@@ -90,22 +92,28 @@ void ChassisInit()
         .motor_type = M3508,
     };
     //  @todo: 当前还没有设置电机的正反转,仍然需要手动添加reference的正负号,需要电机module的支持,待修改.
-    chassis_motor_config.can_init_config.tx_id = 1;
+    chassis_motor_config.can_init_config.tx_id = 3;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_lf = DJIMotorInit(&chassis_motor_config);
     chassis_motor_instance[0] = motor_lf;
 
-    chassis_motor_config.can_init_config.tx_id = 4;
+    chassis_motor_config.can_init_config.tx_id = 2;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_rf = DJIMotorInit(&chassis_motor_config);
     chassis_motor_instance[1] = motor_rf;
 
-    chassis_motor_config.can_init_config.tx_id = 2;
+    chassis_motor_config.can_init_config.tx_id = 4;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_lb = DJIMotorInit(&chassis_motor_config);
     chassis_motor_instance[2] = motor_lb;
 
-    chassis_motor_config.can_init_config.tx_id = 3;
+
+    chassis_motor_config.controller_param_init_config.speed_PID.Kp = 0.95*0.8;
+    chassis_motor_config.controller_param_init_config.speed_PID.Ki = 0.01*0.8;   // 0
+    chassis_motor_config.controller_param_init_config.speed_PID.Kd = 0.0000*0.8; // 0
+    chassis_motor_config.controller_param_init_config.speed_PID.IntegralLimit = 2500*0.8;
+
+    chassis_motor_config.can_init_config.tx_id = 1;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_rb = DJIMotorInit(&chassis_motor_config);
     chassis_motor_instance[3] = motor_rb;
@@ -140,6 +148,20 @@ void ChassisInit()
     chassis_sub = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
     chassis_pub = PubRegister("chassis_feed", sizeof(Chassis_Upload_Data_s));
 #endif // ONE_BOARD
+}
+
+void Chassis_Data_Process()
+{
+    angle_align=chassis_cmd_recv.offset_angle;
+    switch (chassis_cmd_recv.chassis_mode)
+    {
+    case CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL:
+
+        chassis_cmd_recv.offset_angle-=45;
+
+    default:
+        break;
+    }
 }
 
 #define LF_CENTER ((HALF_TRACK_WIDTH + CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE - CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
@@ -330,14 +352,20 @@ static void EstimateSpeed()
 /* 机器人底盘控制核心任务 */
 void ChassisTask()
 {
+    uint8_t is_message_recv=1;          //是否是新消息，如果否则需要防止原有消息处理两次
+
     // 后续增加没收到消息的处理(双板的情况)
     // 获取新的控制信息
 #ifdef ONE_BOARD
-    SubGetMessage(chassis_sub, &chassis_cmd_recv);
+    is_message_recv=SubGetMessage(chassis_sub, &chassis_cmd_recv);
 #endif
 #ifdef CHASSIS_BOARD
     chassis_cmd_recv = *(Chassis_Ctrl_Cmd_s *)CANCommGet(chasiss_can_comm);
 #endif // CHASSIS_BOARD
+
+    if(is_message_recv)
+        Chassis_Data_Process();
+
     static float sin_theta, cos_theta;//计算夹角的sin和cos值
 
     //底盘旋转缓慢加速dt计算变量
@@ -360,8 +388,8 @@ void ChassisTask()
         DJIMotorEnable(motor_lb);
         DJIMotorEnable(motor_rb);
     }
-    cos_theta = arm_cos_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
-    sin_theta = arm_sin_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
+    cos_theta = arm_cos_f32(angle_align * DEGREE_2_RAD);
+    sin_theta = arm_sin_f32(angle_align * DEGREE_2_RAD);
     
     //用于底盘旋转速度缓加
     wz_dt = DWT_GetDeltaT(&dt_feet_cnt);
@@ -373,26 +401,16 @@ void ChassisTask()
         chassis_cmd_recv.wz = 0;
         break;
     case CHASSIS_FOLLOW_GIMBAL_YAW: // 跟随云台,不单独设置pid,以误差角度平方为速度输出
+    case CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL:        //45度模式
 
         // 增加角速度判别，如果先前有一定角速度（阈值需要测）（比如在小陀螺，那么就不要反向转回去，这样机动性会更好）
-        if (chassis_cmd_recv.offset_angle * chassis_feedback_data.real_wz < 0 && fabs(chassis_feedback_data.real_wz) >= 2500)
+        if (chassis_cmd_recv.offset_angle * chassis_feedback_data.real_wz < 0 && fabs(chassis_feedback_data.real_wz) >= 3000)
         {
             chassis_cmd_recv.offset_angle -= 360;
         }
-        chassis_cmd_recv.wz = -1.0f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        chassis_cmd_recv.wz = -4.0f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
-    case CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL:
 
-        // 角度回中直接把offset加个45度即可
-        chassis_cmd_recv.offset_angle -= 45;
-
-        // 增加角速度判别，如果先前有一定角速度（阈值需要测）（比如在小陀螺，那么就不要反向转回去，这样机动性会更好）
-        if (chassis_cmd_recv.offset_angle * chassis_feedback_data.real_wz < 0 && fabs(chassis_feedback_data.real_wz) >= 2500)
-        {
-            chassis_cmd_recv.offset_angle -= 360;
-        }
-        chassis_cmd_recv.wz = -1.15f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
-        break;
 
     case CHASSIS_ROTATE: // 自旋,同时保持全向机动;当前wz维持定值,后续增加不规则的变速策略
         chassis_cmd_recv.wz = chassis_cmd_recv.wz * wz_dt / (wz_LPF_RC + wz_dt) +
@@ -408,6 +426,7 @@ void ChassisTask()
     default:
         break;
     }
+    chassis_cmd_recv.wz=abs_limit(chassis_cmd_recv.wz,6000);
     last_wz=chassis_cmd_recv.wz;//记录上次计算时旋转速度用于滤波
 
     // 根据云台和底盘的角度offset将控制量映射到底盘坐标系上
