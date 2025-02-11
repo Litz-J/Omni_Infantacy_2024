@@ -110,7 +110,7 @@ void ChassisInit()
 
     chassis_motor_config.controller_param_init_config.speed_PID.Kp = 0.95*0.8;
     chassis_motor_config.controller_param_init_config.speed_PID.Ki = 0.01*0.8;   // 0
-    chassis_motor_config.controller_param_init_config.speed_PID.Kd = 0.0000*0.8; // 0
+    chassis_motor_config.controller_param_init_config.speed_PID.Kd = 0.0000; // 0
     chassis_motor_config.controller_param_init_config.speed_PID.IntegralLimit = 2500*0.8;
 
     chassis_motor_config.can_init_config.tx_id = 1;
