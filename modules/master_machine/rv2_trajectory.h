@@ -82,6 +82,7 @@ struct tar_pos
 
 //传输用的数据结构体
 typedef struct
+
 {
     float pitch;
     float yaw;

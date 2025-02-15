@@ -268,8 +268,8 @@ trajectory_target_s *rv2_trajectory_init()
 
     //以下设置参数
     st.bias_time = 100;
-    st.s_bias = 0.02;  //0.2
-    st.z_bias = 0.07;   //0.19
+    st.s_bias = 0.05;  //0.2
+    st.z_bias = 0.00;   //0.19
     st.armor_id = ARMOR_INFANTRY3;
     st.armor_num = ARMOR_NUM_NORMAL;
 
@@ -283,7 +283,7 @@ void rv2_trajectory_passin(rv2_recv_protocol_s *param1,float *param2)
 {
     st.xw = param1->x;
     st.yw = param1->y;
-    st.zw = param1->dz;
+    st.zw = param1->z;
     st.tar_yaw = param1->yaw;
     st.vxw = param1->vx;
     st.vyw = param1->vy;

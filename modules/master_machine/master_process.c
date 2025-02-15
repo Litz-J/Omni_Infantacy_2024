@@ -80,6 +80,7 @@ static void VisionOfflineCallback(void *id)
  */
 static void DecodeVision()
 {
+    static uint32_t vision_recv_cnt;
     recv_data.offline=0;
     DaemonReload(vision_daemon_instance); // 喂狗
 
@@ -88,6 +89,7 @@ static void DecodeVision()
     rv2_trajectory_passin(rv2_recv,&send_data.yaw);
 
     // TODO: code to resolve flag_register;
+    vision_recv_cnt++;
 }
 
 Vision_Recv_s *VisionInit(UART_HandleTypeDef *_handle)
