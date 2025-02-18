@@ -568,5 +568,11 @@ void RobotCMDTask()
     PubPushMessage(gimbal_cmd_pub, (void *)&gimbal_cmd_send);
 
     //@todo:当前数据回传频率受限于CMD任务频率。后面需要分离
-    VisionSend(&vision_send_data);
+    static uint8_t vision_cnt;
+    if(++vision_cnt>=2)
+    {
+        VisionSend(&vision_send_data);
+        vision_cnt=0;
+    }
+
 }

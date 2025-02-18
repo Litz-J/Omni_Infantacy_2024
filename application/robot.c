@@ -55,11 +55,6 @@ void RobotTask()
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
         ChassisTask();
 #endif
-    }
-
-    if(robot_counter%2==0)
-    {
-        //250hz
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
         RobotCMDTask();
         GimbalTask();
