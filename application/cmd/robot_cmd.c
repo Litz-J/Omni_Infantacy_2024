@@ -38,8 +38,6 @@ static RC_ctrl_t *rc_data;              // 遥控器数据,初始化时返回
 static Vision_Recv_s *vision_recv_data; // 视觉接收数据指针,初始化时返回
 static Vision_Send_s vision_send_data;  // 视觉发送数据
 
-
-
 static PIDInstance *pid_pitch_vision,*pid_yaw_vision;
 
 static Publisher_t *gimbal_cmd_pub;            // 云台控制消息发布者
@@ -53,6 +51,10 @@ static Shoot_Ctrl_Cmd_s shoot_cmd_send;      // 传递给发射的控制信息
 static Shoot_Upload_Data_s shoot_fetch_data; // 从发射获取的反馈信息
 
 static Robot_Status_e robot_state; // 机器人整体工作状态
+
+static float chassis_speed_rocker= 0, chassis_speed_mouse = 0;                   //十级10000
+
+float chassis_rotate_speed_mouse,chassis_fastrotate_speed_mouse;
 
 BMI088Instance *bmi088_test; // 云台IMU
 BMI088_Data_t bmi088_data;
@@ -116,7 +118,7 @@ static void CalcOffsetAngle()
 #endif
 }
 
-float chassis_speed_rocker=0;//十级10000
+
 
 /**
  * @brief 控制输入为遥控器(调试时)的模式和控制量设置
@@ -177,11 +179,10 @@ static void RemoteControlSet()
 
     chassis_speed_rocker=2;
 
-    // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
-    chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r_/660.0f * chassis_speed_rocker; // _水平方向
-    chassis_cmd_send.vy = (float)rc_data[TEMP].rc.rocker_r1/660.0f * chassis_speed_rocker; // 竖直方向
+    chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r1/660.0f * chassis_speed_rocker; // 竖直方向
+    chassis_cmd_send.vy = -(float)rc_data[TEMP].rc.rocker_r_/660.0f * chassis_speed_rocker; // _水平方向
 
-    chassis_cmd_send.wz = 3000.0f;
+    chassis_cmd_send.wz = 3600.0f;
     shoot_cmd_send.shoot_rate = 8;
 }
 
@@ -211,11 +212,8 @@ static void RemoteShootSet()
     gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1;
 }
 
-float chassis_speed_mouse=0;//十级10000
-float chassis_rotate_speed_mouse,chassis_fastrotate_speed_mouse;
 
-float temp_yaw_err;
-float temp_pitch_err;
+
 
 /**
  * @brief 输入为键鼠时模式和控制量设置
@@ -266,10 +264,10 @@ static void MouseKeySet()
         chassis_fastrotate_speed_mouse=8500;
     }
 
-    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w *  chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].s * chassis_speed_mouse; // 系数待测
-    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].a * chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].d * chassis_speed_mouse;
+    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].w *  chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].s * chassis_speed_mouse; // 系数待测
+    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].a * chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].d * chassis_speed_mouse;
 
-    //右键开自瞄，现在需要测试
+    //右键开自瞄
     if(rc_data[TEMP].mouse.press_r==1)
     {
         gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 6.0f; // 系数待测
@@ -283,9 +281,6 @@ static void MouseKeySet()
         gimbal_cmd_send.yaw=-vision_recv_data->yaw;
     }
 
-
-    temp_yaw_err=vision_recv_data->yaw-gimbal_fetch_data.gimbal_imu_data.YawTotalAngle;
-    temp_pitch_err=vision_recv_data->pitch-gimbal_fetch_data.gimbal_imu_data.Pitch;
 
     // 不可以在行代码后面再修改云台目标角度！！
     // 云台软件限位
@@ -422,16 +417,16 @@ static void MouseKeySet()
     //             rc_data[TEMP].key_count[KEY_PRESS][Key_C]--;
     //             rc_data[TEMP].key_count[KEY_PRESS][Key_X]++;
     //         }
-            
-    //     } 
+
+    //     }
     //     break;
     // default:
     //     break;
     // }
-    switch (rc_data[TEMP].key[KEY_PRESS].shift) // 按shift强制开启小陀螺
+    switch (rc_data[TEMP].key[KEY_PRESS].shift) // 按shift
     {
     case 1:
-        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
+        // chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
         break;
     default:
 
@@ -443,35 +438,35 @@ static void MouseKeySet()
             chassis_cmd_send.wz = chassis_fastrotate_speed_mouse;
             break;
         default:
-            //chassis_cmd_send.wz = 3500.0f + 500.0f * float_constrain(sin(DWT_GetTimeline_s()*3.14*0.85)*sin(DWT_GetTimeline_s()*3.14*0.375),-0.45,0.675);
+            // chassis_cmd_send.wz = 3500.0f + 500.0f * float_constrain(arm_sin_f32(DWT_GetTimeline_s()*3.14*0.85)*arm_sin_f32(DWT_GetTimeline_s()*3.14*0.375),-0.45,0.675);
             chassis_cmd_send.wz = chassis_rotate_speed_mouse;
             break;
-        
     }
 
 }
-float v;
-float reduction;
+
 //对速度进行处理，包括归一化、小陀螺速度重新分配等
 static void SpeedDistribution()
 {
-    v=Sqrt(float_Square(chassis_cmd_send.vx)+float_Square(chassis_cmd_send.vy));
-    if(v!=0)
+    static float v_now, reduction_v;
+
+    v_now = Sqrt(float_Square(chassis_cmd_send.vx)+float_Square(chassis_cmd_send.vy));
+    if(v_now!=0)
     {
-        reduction=(chassis_speed_mouse+chassis_speed_rocker)/v;
-        if(reduction<=1)
+        reduction_v=(chassis_speed_mouse+chassis_speed_rocker)/v_now;
+        if(reduction_v<1)
         {
-            chassis_cmd_send.vx*=reduction;
-            chassis_cmd_send.vy*=reduction;
+            chassis_cmd_send.vx *= reduction_v;
+            chassis_cmd_send.vy *= reduction_v;
         }
     }
     
     //移动时小陀螺减速
-    if(chassis_cmd_send.vx!=0||chassis_cmd_send.vy!=0)
+    if(chassis_cmd_send.vx != 0 || chassis_cmd_send.vy != 0)
     {
         if(chassis_cmd_send.chassis_mode == CHASSIS_ROTATE)
-            chassis_cmd_send.wz *=0.625f;
-    }    
+            chassis_cmd_send.wz *= 0.7f;
+    }
 }
 
 /**
@@ -546,7 +541,6 @@ void RobotCMDTask()
     {
         RemoteShootSet();
     }
-
 
 
     SpeedDistribution();

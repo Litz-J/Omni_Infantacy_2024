@@ -160,19 +160,12 @@ typedef struct
 /* ID: 0X0201  Byte: 27    机器人状态数据 */
 typedef struct
 {
-	uint8_t robot_id;
-	uint8_t robot_level;
-	uint16_t remain_HP;
-	uint16_t max_HP;
+	uint8_t robot_id;								//本机器人ID
+	uint8_t robot_level;							//机器人等级
+	uint16_t remain_HP;								//机器人当前血量
+	uint16_t max_HP;								//机器人血量上限
 	uint16_t shooter_id1_17mm_cooling_rate;
 	uint16_t shooter_id1_17mm_cooling_limit;//枪口热量上限
-	// uint16_t shooter_id1_17mm_speed_limit;
-	// uint16_t shooter_id2_17mm_cooling_rate;
-	// uint16_t shooter_id2_17mm_cooling_limit;
-	// uint16_t shooter_id2_17mm_speed_limit;
-	// uint16_t shooter_id1_42mm_cooling_rate;
-	// uint16_t shooter_id1_42mm_cooling_limit;
-	// uint16_t shooter_id1_42mm_speed_limit;
 	uint16_t chassis_power_limit;          //底盘功率上限
 	uint8_t mains_power_gimbal_output : 1;
 	uint8_t mains_power_chassis_output : 1;

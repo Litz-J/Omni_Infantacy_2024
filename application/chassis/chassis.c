@@ -179,16 +179,16 @@ static void MecanumCalculate()
     float vx_dps = VWHEEL_2_DPS(chassis_vx);
     float vy_dps = VWHEEL_2_DPS(chassis_vy);
     //轮子线速度±vx±vy-wz*r
-    vt_lf = -vx_dps - vy_dps - chassis_cmd_recv.wz * LF_CENTER;
-    vt_rf = -vx_dps + vy_dps - chassis_cmd_recv.wz * RF_CENTER;
-    vt_lb = vx_dps - vy_dps - chassis_cmd_recv.wz * LB_CENTER;
-    vt_rb = vx_dps + vy_dps - chassis_cmd_recv.wz * RB_CENTER;
+    vt_lf = -vx_dps + vy_dps - chassis_cmd_recv.wz * LF_CENTER;
+    vt_rf = +vx_dps + vy_dps - chassis_cmd_recv.wz * RF_CENTER;
+    vt_lb = -vx_dps - vy_dps - chassis_cmd_recv.wz * LB_CENTER;
+    vt_rb = +vx_dps - vy_dps - chassis_cmd_recv.wz * RB_CENTER;
 }
 
 #define COSINE45 0.7071068f
 #define SINE45 0.7071068f
-#define SECANT45 1 / COSINE45
-#define COSECANT45 1 / SINE45
+#define SECANT45 (1 / COSINE45)
+#define COSECANT45 (1 / SINE45)
 /**
  * @brief 全向轮：计算每个轮毂电机的输出,正运动学解算
  *        用宏进行预替换减小开销,运动解算具体过程参考教程
@@ -201,10 +201,10 @@ static void OmnidirectionalCalculate()
     float vx_dps = VWHEEL_2_DPS(chassis_vx);
     float vy_dps = VWHEEL_2_DPS(chassis_vy);
     //注意wz单位是度，*LF_CENTER相当于把wz*LF_CENTER换算成弧度并乘上了半径
-    vt_lf =(-vx_dps-vy_dps)*COSECANT45 - chassis_cmd_recv.wz * LF_CENTER;
-    vt_rf =(-vx_dps+vy_dps)*COSECANT45 - chassis_cmd_recv.wz * RF_CENTER;
-    vt_lb =(vx_dps-vy_dps)*COSECANT45 - chassis_cmd_recv.wz * LB_CENTER;
-    vt_rb =(vx_dps+vy_dps)*COSECANT45 - chassis_cmd_recv.wz * RB_CENTER;
+    vt_lf =(-vx_dps+vy_dps)*COSECANT45 - chassis_cmd_recv.wz * LF_CENTER;
+    vt_rf =(+vx_dps+vy_dps)*COSECANT45 - chassis_cmd_recv.wz * RF_CENTER;
+    vt_lb =(-vx_dps-vy_dps)*COSECANT45 - chassis_cmd_recv.wz * LB_CENTER;
+    vt_rb =(+vx_dps-vy_dps)*COSECANT45 - chassis_cmd_recv.wz * RB_CENTER;
 }
 
 /**
@@ -219,24 +219,6 @@ static void ChassisSetRef()
     DJIMotorSetRef(motor_rb, vt_rb);
 }
 
-/*这功率限制使用的临时变量*/
-
-static float chassis_pid_output[4];
-static float chassis_pid_totaloutput;
-
-static float chassis_power_limit,chassis_input_power,chassis_power_buffer;//裁判系统获取的功率限制值、当前功率值、当前缓冲能量值
-static float chassis_power_max;//计算使用的最大功率值
-static float chassis_power_offset = -5; // 功率冗余，可修改
-
-//三个系数
-float toque_coefficient = 1.99688994e-6f; // (20/16384)*(0.3)*(187/3591)/9.55
-float k1 = 1.26e-07;                      // k1，9.50000043e-08
-float k2 = 1.95000013e-07;                // k2
-float constant_coefficient = 3.5f;
-
-//标示是否处在缓冲能量低状态
-bool isLowBuffer = false;
-
 #define CHASSIS_POWER_COFFICIENT (1 - (float)(120 - 45) / (float)(135 - 50)) // 这个量出现是因为我们的电机阻力较大，导致理论值和实际值相差较大，用于补偿
 
 /**
@@ -245,30 +227,49 @@ bool isLowBuffer = false;
  */
 static void LimitChassisOutput()
 {
+    //标示是否处在缓冲能量低状态
+    static bool isLowBuffer = false;
+
+    //三个系数
+    static float toque_coefficient = 1.99688994e-6f; // (20/16384)*(0.3)*(187/3591)/9.55
+    static float k1 = 1.26e-07;                      // k1，9.50000043e-08
+    static float k2 = 1.95000013e-07;                // k2
+    static float constant_coefficient = 3.5f;
+
+    /*功率限制使用的临时变量*/
+    static float chassis_pid_output[4];
+    static float chassis_pid_totaloutput;
+
+    static float chassis_power_limit,chassis_input_power,chassis_power_buffer;//裁判系统获取的功率限制值、当前功率值、当前缓冲能量值
+    static float chassis_power_max;//计算使用的最大功率值
+    static float chassis_power_offset = -5; // 功率冗余，可修改
+
+
     chassis_pid_totaloutput = 0;
     chassis_power_limit = referee_data->GameRobotState.chassis_power_limit; // 从裁判系统获取的能量限制
 
     chassis_input_power = referee_data->PowerHeatData.chassis_power;
     chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
 
-    if (chassis_power_limit >= 100)
+    if (chassis_power_limit >= 110)
     {
-        chassis_power_limit = 100;
+        chassis_power_limit = 110;
     }
 
-    chassis_power_limit=400;
+    chassis_power_limit=120;
+
+    // 用一个系数拟合补偿
+    // chassis_power_offset = -1 * CHASSIS_POWER_COFFICIENT * (chassis_power_limit)-0;
 
     // 根据缓冲能量和当前功率限制，计算最大功率值
-    chassis_power_offset = -1 * CHASSIS_POWER_COFFICIENT * (chassis_power_limit)-0;
-
     chassis_power_max = chassis_power_limit + chassis_power_offset;
 
 
 
     if (isLowBuffer)
     {
-        chassis_power_max = chassis_power_max - 25;
-        if (chassis_power_buffer >= 55.0f)
+        chassis_power_max = chassis_power_max - 35;
+        if (chassis_power_buffer >= 50.0f)
         {
             isLowBuffer = false;
         }
@@ -276,7 +277,7 @@ static void LimitChassisOutput()
     else
     {
         // 缓冲能量判断，如果缓冲能量少，则马上减小功率，减少量待测
-        if (chassis_power_buffer < 10.0f)
+        if (chassis_power_buffer < 15.0f)
         {
             isLowBuffer = true;
             chassis_power_max = chassis_power_max - 35;
@@ -316,13 +317,13 @@ static void LimitChassisOutput()
 
             if (chassis_motor_instance[i]->motor_controller.pid_output > 0)
             {
-                float temp = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp, 13000));
+                float temp = (-b + Sqrt(b * b - 4 * a * c)) / (2 * a);
+                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp, 15000));
             }
             else
             {
-                float temp = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
-                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp, 13000));
+                float temp = (-b - Sqrt(b * b - 4 * a * c)) / (2 * a);
+                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp, 15000));
             }
         }
     }
