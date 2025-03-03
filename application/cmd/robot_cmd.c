@@ -14,6 +14,8 @@
 #include "user_lib.h"
 #include "rv2_trajectory.h"
 // bsp
+#include <custom_controller.h>
+
 #include "bsp_dwt.h"
 #include "bsp_log.h"
 
@@ -38,7 +40,7 @@ static RC_ctrl_t *rc_data;              // 遥控器数据,初始化时返回
 static Vision_Recv_s *vision_recv_data; // 视觉接收数据指针,初始化时返回
 static Vision_Send_s vision_send_data;  // 视觉发送数据
 
-static PIDInstance *pid_pitch_vision,*pid_yaw_vision;
+static Custom_Controller_Recv_s *custom_recv_data;   //自定义控制器接收消息
 
 static Publisher_t *gimbal_cmd_pub;            // 云台控制消息发布者
 static Subscriber_t *gimbal_feed_sub;          // 云台反馈信息订阅者
@@ -63,6 +65,7 @@ void RobotCMDInit()
 {
     rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
     vision_recv_data = VisionInit(&huart1); // 视觉通信串口
+    // custom_recv_data = CustomControllerInit(&huart1);
 
     gimbal_cmd_pub = PubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
     gimbal_feed_sub = SubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
@@ -154,20 +157,11 @@ static void RemoteControlSet()
         
     }
 
-    // 云台参数,确定云台控制数据
-    if (switch_is_mid(rc_data[TEMP].rc.switch_left)) // 左侧开关状态为[中],视觉模式
-    {
-        gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_+pid_yaw_vision->Output;
-        gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1-pid_pitch_vision->Output;
-    }
-    // 左侧开关状态为[下],或视觉未识别到目标,纯遥控器拨杆控制
-    if (switch_is_down(rc_data[TEMP].rc.switch_left) || vision_recv_data->target_state == NO_TARGET)
-    { // 按照摇杆的输出大小进行角度增量,增益系数需调整
-        gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_-pid_yaw_vision->Output;
-        gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1-pid_pitch_vision->Output;
-    }
+    gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_;
+    gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1;
 
-    // 云台软件限位
+
+    // 云台软件限位,这行之后不能再修改云台角度！！！！
     if(gimbal_cmd_send.pitch>=PITCH_MAX_ANGLE)
     {
         gimbal_cmd_send.pitch=PITCH_MAX_ANGLE;
@@ -188,7 +182,7 @@ static void RemoteControlSet()
 
 static void RemoteShootSet()
 {
-    shoot_cmd_send.shoot_rate = 4;
+    shoot_cmd_send.shoot_rate = 6;
     //右上默认状态
     chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
     gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
@@ -196,23 +190,51 @@ static void RemoteShootSet()
     shoot_cmd_send.load_mode=LOAD_STOP;
     gimbal_cmd_send.lid_mode=LID_CLOSE;
 
-    if (switch_is_mid(rc_data[TEMP].rc.switch_right)) 
+    if(custom_recv_data == NULL || switch_is_up(rc_data[TEMP].rc.switch_right))
     {
-        shoot_cmd_send.friction_mode = FRICTION_ON;
-        shoot_cmd_send.load_mode=LOAD_STOP;
-        gimbal_cmd_send.lid_mode=LID_OPEN;
+        // 无自定义控制器时或右在上，关闭自定义控制器
+        if (switch_is_mid(rc_data[TEMP].rc.switch_right))
+        {
+            shoot_cmd_send.friction_mode = FRICTION_ON;
+            shoot_cmd_send.load_mode=LOAD_STOP;
+            gimbal_cmd_send.lid_mode=LID_OPEN;
+        }
+        if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],
+        {
+            shoot_cmd_send.friction_mode = FRICTION_ON;
+            shoot_cmd_send.load_mode=LOAD_BURSTFIRE;
+            gimbal_cmd_send.lid_mode=LID_CLOSE;
+        }
+
+        gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_;
+        gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1;
+
     }
-    if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],
+    else
     {
-        shoot_cmd_send.friction_mode = FRICTION_ON;
-        shoot_cmd_send.load_mode=LOAD_BURSTFIRE;
-        gimbal_cmd_send.lid_mode=LID_CLOSE;
+        //自定义控制器
+        shoot_cmd_send.friction_mode = (custom_recv_data->key_count[CUSTOM_KEY_COUNT_PRESS][2])%2;
+        shoot_cmd_send.load_mode = custom_recv_data->key[CUSTOM_KEY_NOW][1] ? LOAD_BURSTFIRE : LOAD_STOP;
+        chassis_cmd_send.vx=8000*custom_recv_data->joystick_x/1700.0;
+        chassis_cmd_send.vy=8000*custom_recv_data->joystick_y/1700.0;
+
+        gimbal_cmd_send.pitch = custom_recv_data->pitch ;
+
     }
-    gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_;
-    gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1;
+
+
+    // 云台软件限位,这行之后不能再修改云台角度！！！！
+    if(gimbal_cmd_send.pitch>=PITCH_MAX_ANGLE)
+    {
+        gimbal_cmd_send.pitch=PITCH_MAX_ANGLE;
+    }
+    else if(gimbal_cmd_send.pitch<=PITCH_MIN_ANGLE)
+    {
+        gimbal_cmd_send.pitch=PITCH_MIN_ANGLE;
+    }
+
+
 }
-
-
 
 
 /**
@@ -245,7 +267,7 @@ static void MouseKeySet()
         chassis_rotate_speed_mouse=3500;
         chassis_fastrotate_speed_mouse=4500;
     }
-        if(chassis_power_limit>=70)
+    if(chassis_power_limit>=70)
     {
         chassis_speed_mouse=0.65;
         chassis_rotate_speed_mouse=3500;
