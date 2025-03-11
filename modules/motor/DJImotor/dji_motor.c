@@ -209,6 +209,35 @@ void DJIMotorChangeFeed(DJIMotorInstance *motor, Closeloop_Type_e loop, Feedback
         LOGERROR("[dji_motor] loop type error, check memory access and func param"); // 检查是否传入了正确的LOOP类型,或发生了指针越界
 }
 
+void DJIMotorChangePIDParameters(DJIMotorInstance *motor, Closeloop_Type_e loop, PID_Init_Config_s *config)
+{
+    PIDInstance *pid_instance = NULL;
+    if (loop == ANGLE_LOOP)
+        pid_instance = &motor->motor_controller.angle_PID;
+    else if (loop == SPEED_LOOP)
+        pid_instance = &motor->motor_controller.speed_PID;
+    else if (loop == CURRENT_LOOP)
+        pid_instance = &motor->motor_controller.current_PID;
+    else
+    {
+        LOGERROR("[dji_motor] loop type error, check memory access and func param"); // 检查是否传入了正确的LOOP类型,或发生了指针越界
+        return;
+    }
+
+    pid_instance->Kp = config->Kp;
+    pid_instance->Ki = config->Ki;
+    pid_instance->Kd = config->Kd;
+    pid_instance->MaxOut = config->MaxOut;
+    pid_instance->DeadBand = config->DeadBand;
+
+    pid_instance->Improve = config->Improve;
+    pid_instance->IntegralLimit = config->IntegralLimit;
+    pid_instance->CoefA = config->CoefA;
+    pid_instance->CoefB = config->CoefB;
+    pid_instance->Output_LPF_RC = config->Output_LPF_RC;
+    pid_instance->Derivative_LPF_RC = config->Derivative_LPF_RC;
+}
+
 void DJIMotorStop(DJIMotorInstance *motor)
 {
     motor->stop_flag = MOTOR_STOP;

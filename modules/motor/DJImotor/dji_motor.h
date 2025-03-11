@@ -103,6 +103,15 @@ void DJIMotorSetRef(DJIMotorInstance *motor, float ref);
 void DJIMotorChangeFeed(DJIMotorInstance *motor, Closeloop_Type_e loop, Feedback_Source_e type);
 
 /**
+ * @brief 切换闭环的参数
+ *
+ * @param motor   要切换反馈数据来源的电机
+ * @param loop    要切换反馈数据来源的控制闭环
+ * @param config  PID配置
+ */
+void DJIMotorChangePIDParameters(DJIMotorInstance *motor, Closeloop_Type_e loop, PID_Init_Config_s *config);
+
+/**
  * @brief 该函数被motor_task调用运行在rtos上,motor_stask内通过osDelay()确定控制频率
  */
 void DJIMotorControl();
