@@ -55,7 +55,6 @@ static Shoot_Upload_Data_s shoot_fetch_data; // 从发射获取的反馈信息
 static Robot_Status_e robot_state; // 机器人整体工作状态
 
 static float chassis_speed_rocker= 0, chassis_speed_mouse = 0;                   //十级10000
-
 float chassis_rotate_speed_mouse,chassis_fastrotate_speed_mouse;
 
 BMI088Instance *bmi088_test; // 云台IMU
@@ -176,13 +175,13 @@ static void RemoteControlSet()
     chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r1/660.0f * chassis_speed_rocker; // 竖直方向
     chassis_cmd_send.vy = -(float)rc_data[TEMP].rc.rocker_r_/660.0f * chassis_speed_rocker; // _水平方向
 
-    chassis_cmd_send.wz = 3600.0f;
+    chassis_cmd_send.wz = 1600.0f;
     shoot_cmd_send.shoot_rate = 8;
 }
 
 static void RemoteShootSet()
 {
-    shoot_cmd_send.shoot_rate = 6;
+    shoot_cmd_send.shoot_rate = 18;
     //右上默认状态
     chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
     gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;

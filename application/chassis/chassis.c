@@ -256,7 +256,7 @@ static void LimitChassisOutput()
         chassis_power_limit = 110;
     }
 
-    chassis_power_limit=120;
+    chassis_power_limit=60;
 
     // 用一个系数拟合补偿
     // chassis_power_offset = -1 * CHASSIS_POWER_COFFICIENT * (chassis_power_limit)-0;
@@ -353,7 +353,7 @@ static void EstimateSpeed()
 /* 机器人底盘控制核心任务 */
 void ChassisTask()
 {
-    uint8_t is_message_recv=1;          //是否是新消息，如果否则需要防止原有消息处理两次
+    uint8_t is_message_recv = 1;          //是否是新消息，如果否则需要防止原有消息处理两次
 
     // 后续增加没收到消息的处理(双板的情况)
     // 获取新的控制信息
