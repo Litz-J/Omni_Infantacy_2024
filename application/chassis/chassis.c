@@ -251,38 +251,47 @@ static void LimitChassisOutput()
     chassis_input_power = referee_data->PowerHeatData.chassis_power;
     chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
 
-    if (chassis_power_limit >= 110)
+
+
+    if(chassis_power_limit==0 && chassis_power_buffer == 0)
     {
-        chassis_power_limit = 110;
-    }
-
-    chassis_power_limit=60;
-
-    // 用一个系数拟合补偿
-    // chassis_power_offset = -1 * CHASSIS_POWER_COFFICIENT * (chassis_power_limit)-0;
-
-    // 根据缓冲能量和当前功率限制，计算最大功率值
-    chassis_power_max = chassis_power_limit + chassis_power_offset;
-
-
-
-    if (isLowBuffer)
-    {
-        chassis_power_max = chassis_power_max - 35;
-        if (chassis_power_buffer >= 50.0f)
-        {
-            isLowBuffer = false;
-        }
+        //说明裁判系统没连上
+        chassis_power_limit = 80;
     }
     else
     {
-        // 缓冲能量判断，如果缓冲能量少，则马上减小功率，减少量待测
-        if (chassis_power_buffer < 15.0f)
+        if (chassis_power_limit >= 110)
         {
-            isLowBuffer = true;
-            chassis_power_max = chassis_power_max - 35;
+            chassis_power_limit = 110;
+        }
+
+
+
+        // 用一个系数拟合补偿
+        // chassis_power_offset = -1 * CHASSIS_POWER_COFFICIENT * (chassis_power_limit)-0;
+
+
+        if (isLowBuffer)
+        {
+            chassis_power_limit -= 35;
+            if (chassis_power_buffer >= 50.0f)
+            {
+                isLowBuffer = false;
+            }
+        }
+        else
+        {
+            // 缓冲能量判断，如果缓冲能量少，则马上减小功率，减少量待测
+            if (chassis_power_buffer < 15.0f)
+            {
+                isLowBuffer = true;
+                chassis_power_limit -= 35;
+            }
         }
     }
+
+    // 根据缓冲能量和当前功率限制，计算最大功率值
+    chassis_power_max = chassis_power_limit + chassis_power_offset;
 
     // 参考西交利物浦
     for (int i = 0; i < 4; i++)

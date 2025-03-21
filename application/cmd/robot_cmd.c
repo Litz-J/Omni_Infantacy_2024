@@ -175,7 +175,7 @@ static void RemoteControlSet()
     chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r1/660.0f * chassis_speed_rocker; // 竖直方向
     chassis_cmd_send.vy = -(float)rc_data[TEMP].rc.rocker_r_/660.0f * chassis_speed_rocker; // _水平方向
 
-    chassis_cmd_send.wz = 1600.0f;
+    chassis_cmd_send.wz = 4000.0f;
     shoot_cmd_send.shoot_rate = 8;
 }
 

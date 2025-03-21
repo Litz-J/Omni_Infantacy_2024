@@ -31,6 +31,27 @@ static loader_mode_e ShootModGet(void);
 loader_mode_e ShootModGet(void)
 {
     static loader_mode_e Last_Mode;
+    static uint8_t reverse_cnt = 0;
+
+    //卡弹检测
+    if(loader->motor_controller.speed_PID.ERRORHandler.ERRORCount>=50)
+    {
+        shoot_cmd_recv.load_mode = LOAD_REVERSE;
+        if(Last_Mode != LOAD_REVERSE)
+        {
+            loader->motor_controller.speed_PID.Iout=0;
+            reverse_cnt=50;
+        }
+
+
+    }
+    if(reverse_cnt>0)
+    {
+        reverse_cnt--;
+        shoot_cmd_recv.load_mode = LOAD_REVERSE;
+    }
+
+
     if(shoot_cmd_recv.load_mode != LOAD_STOP && Last_Mode==LOAD_STOP)
     {
         is_loadstop=false;
@@ -39,6 +60,7 @@ loader_mode_e ShootModGet(void)
     {
         
     }
+
     Last_Mode=shoot_cmd_recv.load_mode;
     return shoot_cmd_recv.load_mode;
 }
@@ -77,10 +99,10 @@ void ShootInit()
             .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
         },
         .motor_type = M3508};
-    friction_config.can_init_config.tx_id = 6,
+    friction_config.can_init_config.tx_id = 7,
     friction_l = DJIMotorInit(&friction_config);
 
-    friction_config.can_init_config.tx_id = 7; // 右摩擦轮,改txid和方向就行
+    friction_config.can_init_config.tx_id = 6; // 右摩擦轮,改txid和方向就行
     friction_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     friction_r = DJIMotorInit(&friction_config);
 
@@ -94,7 +116,7 @@ void ShootInit()
             .angle_PID = {
                 // 如果启用位置环来控制发弹,需要较大的I值保证输出力矩的线性度否则出现接近拨出的力矩大幅下降
                 .Kp = 3, // 10
-                .Ki = 50,
+                .Ki = 5,
                 .Kd = 0.1,
                 .MaxOut = 50000,
                 .Improve = PID_Integral_Limit | PID_DerivativeFilter,
@@ -103,12 +125,12 @@ void ShootInit()
                 .DeadBand=750,
             },
             .speed_PID = {
-                .Kp = 5, // 10
-                .Ki = 0.800000012, // 1
-                .Kd = 0.0250000004,
-                .Improve = PID_Integral_Limit | PID_DerivativeFilter,
-                .IntegralLimit = 3000,
-                .MaxOut = 9000,
+                .Kp = 7, // 10
+                .Ki = 8, // 1
+                .Kd = 0.0150000004,
+                .Improve = PID_Integral_Limit | PID_DerivativeFilter | PID_ErrorHandle,
+                .IntegralLimit = 6000,
+                .MaxOut = 10000,
                 .Derivative_LPF_RC = 0.04,
             },
             .current_PID = {
@@ -136,7 +158,7 @@ void ShootInit()
 }
 
 float speedref=0;
-float torque2006 ;
+// float torque2006 ;
 float fric_v=42000;
 //48000,31m/s
 //44500,26.7m/s
@@ -144,7 +166,7 @@ float fric_v=42000;
 /* 机器人发射机构控制核心任务 */
 void ShootTask()
 {
-    torque2006=loader->measure.real_current/16384.0f*36.0f;
+    // torque2006=loader->measure.real_current/16384.0f*36.0f;
 
 
     // 从cmd获取控制数据
@@ -236,9 +258,9 @@ void ShootTask()
     // 拨盘反转,对速度闭环,后续增加卡弹检测(通过裁判系统剩余热量反馈和电机电流)
     // 也有可能需要从switch-case中独立出来
     case LOAD_REVERSE:
-        //DJIMotorEnable(loader);
+        // DJIMotorEnable(loader);
         DJIMotorOuterLoop(loader, SPEED_LOOP);
-        DJIMotorSetRef(loader, shoot_cmd_recv.shoot_rate * 360 * REDUCTION_RATIO_LOADER / NUM_PER_CIRCLE);
+        DJIMotorSetRef(loader, -shoot_cmd_recv.shoot_rate * 360 * REDUCTION_RATIO_LOADER / NUM_PER_CIRCLE / 2.0f);
         // ...
         break;
     default:
