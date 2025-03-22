@@ -4,14 +4,14 @@ Breakpoint=D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/application/
 Breakpoint=D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/application/chassis/chassis.c:392:29, State=BP_STATE_DISABLED
 Breakpoint=D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/application/chassis/chassis.c:402:29, State=BP_STATE_DISABLED
 Breakpoint=D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/modules/master_machine/rv2_protocal.c:49:1, State=BP_STATE_DISABLED
-Breakpoint=D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/bsp/can/bsp_can.c:115, State=BP_STATE_ON
-OpenDocument="bsp_can.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/bsp/can/bsp_can.c", Line=102
+GraphedExpression="(shoot_cmd_recv).load_mode", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#e56a6f
+OpenDocument="main.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/Src/main.c", Line=66
 OpenDocument="dji_motor.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/modules/motor/DJImotor/dji_motor.c", Line=259
 OpenDocument="SEGGER_RTT_printf.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/Middlewares/Third_Party/SEGGER/RTT/SEGGER_RTT_printf.c", Line=96
 OpenDocument="bsp_dwt.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/bsp/dwt/bsp_dwt.c", Line=63
-OpenDocument="main.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/Src/main.c", Line=66
-OpenDocument="stm32f4xx_hal_spi.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c", Line=3614
 OpenDocument="startup_stm32f407xx.s", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/startup_stm32f407xx.s", Line=48
+OpenDocument="stm32f4xx_hal_spi.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c", Line=3614
+OpenDocument="bsp_can.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/bsp/can/bsp_can.c", Line=102
 OpenDocument="chassis.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/application/chassis/chassis.c", Line=56
 OpenDocument="master_process.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/modules/master_machine/master_process.c", Line=101
 OpenDocument="ins_task.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/modules/imu/ins_task.c", Line=117
@@ -19,22 +19,26 @@ OpenDocument="stm32f4xx_hal_can.c", FilePath="D:/STM32_RM/basic_framework_Projec
 OpenDocument="robot.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/application/robot.c", Line=0
 OpenDocument="robot_cmd.c", FilePath="D:/STM32_RM/basic_framework_Project/HY_OmniStandard_2024/application/cmd/robot_cmd.c", Line=494
 OpenToolbar="Debug", Floating=0, x=0, y=0
-OpenWindow="Call Stack", DockArea=RIGHT, x=0, y=1, w=735, h=214, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Disassembly", DockArea=RIGHT, x=0, y=3, w=735, h=268, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Break & Tracepoints", DockArea=LEFT, x=0, y=0, w=1000, h=346, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VectorCatchIndexMask=254
-OpenWindow="Local Data", DockArea=RIGHT, x=0, y=0, w=735, h=276, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=2, w=1000, h=621, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Data Sampling", DockArea=LEFT, x=0, y=1, w=1000, h=281, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VisibleTab=0, UniformSampleSpacing=0
-OpenWindow="Timeline", DockArea=RIGHT, x=0, y=2, w=735, h=489, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=1, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="2 s / Div", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="93;296", DataGraphShowNamesAtCursor=0, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="446;-85", CodeGraphLegendShown=0, CodeGraphLegendPosition="468;0"
+OpenWindow="Call Stack", DockArea=RIGHT, x=0, y=1, w=965, h=147, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Disassembly", DockArea=RIGHT, x=0, y=3, w=965, h=269, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Break & Tracepoints", DockArea=LEFT, x=0, y=0, w=1000, h=361, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VectorCatchIndexMask=254
+OpenWindow="Local Data", DockArea=RIGHT, x=0, y=0, w=965, h=170, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=2, w=1000, h=577, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Data Sampling", DockArea=LEFT, x=0, y=1, w=1000, h=310, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VisibleTab=0, UniformSampleSpacing=0
+OpenWindow="Timeline", DockArea=RIGHT, x=0, y=2, w=965, h=661, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=1, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="10 s / Div", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="93;446", DataGraphShowNamesAtCursor=0, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="676;-85", CodeGraphLegendShown=0, CodeGraphLegendPosition="698;0"
 SmartViewPlugin="", Page="", Toolbar="Hidden", Window="SmartView 1"
 TableHeader="Vector Catches", SortCol="", SortOrder="ASCENDING", VisibleCols=["";"Vector Catch";"Description"], ColWidths=[50;300;650]
-TableHeader="Break & Tracepoints", SortCol="", SortOrder="ASCENDING", VisibleCols=["";"Type";"Location";"Extras"], ColWidths=[100;100;126;1037]
-TableHeader="Local Data", SortCol="Name", SortOrder="DESCENDING", VisibleCols=["Name";"Value";"Location";"Size";"Type";"Scope"], ColWidths=[140;204;100;100;210;256]
-TableHeader="Call Stack", SortCol="Function", SortOrder="ASCENDING", VisibleCols=["Function";"Stack Frame";"Source";"PC";"Return Address";"Stack Used"], ColWidths=[148;131;126;100;140;128]
-TableHeader="Data Sampling Table", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time"], ColWidths=[100;100]
-TableHeader="Data Sampling Setup", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Type";"Value";"Min";"Max";"Average";"# Changes";"Min. Change";"Max. Change"], ColWidths=[388;100;100;100;100;115;137;159;159]
+TableHeader="Break & Tracepoints", SortCol="", SortOrder="ASCENDING", VisibleCols=["";"Type";"Location";"Extras"], ColWidths=[100;100;126;674]
+TableHeader="Local Data", SortCol="Name", SortOrder="DESCENDING", VisibleCols=["Name";"Value";"Location";"Size";"Type";"Scope"], ColWidths=[140;204;100;100;210;211]
+TableHeader="Call Stack", SortCol="Function", SortOrder="ASCENDING", VisibleCols=["Function";"Stack Frame";"Source";"PC";"Return Address";"Stack Used"], ColWidths=[148;131;126;100;140;320]
+TableHeader="Data Sampling Table", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";" (shoot_cmd_recv).load_mode"], ColWidths=[100;100;100]
+TableHeader="Data Sampling Setup", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Type";"Value";"Min";"Max";"Average";"# Changes";"Min. Change";"Max. Change"], ColWidths=[388;248;100;100;100;115;137;159;159]
 TableHeader="Power Sampling", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";"Ch 0"], ColWidths=[100;100;100]
-TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Location";"Refresh"], ColWidths=[259;213;166;336]
+TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Location";"Refresh"], ColWidths=[259;213;166;362]
 TableHeader="RegisterSelectionDialog", SortCol="None", SortOrder="ASCENDING", VisibleCols=[], ColWidths=[]
 TableHeader="TargetExceptionDialog", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Address";"Description"], ColWidths=[200;100;100;340]
 WatchedExpression="referee_data", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="loader", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="shoot_cmd_recv", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="chassis_power_limit", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="chassis_power_buffer", RefreshRate=5, Window=Watched Data 1

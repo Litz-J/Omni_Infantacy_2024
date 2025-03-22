@@ -242,7 +242,7 @@ static void LimitChassisOutput()
 
     static float chassis_power_limit,chassis_input_power,chassis_power_buffer;//裁判系统获取的功率限制值、当前功率值、当前缓冲能量值
     static float chassis_power_max;//计算使用的最大功率值
-    static float chassis_power_offset = -5; // 功率冗余，可修改
+    static float chassis_power_offset = -10; // 功率冗余，可修改
 
 
     chassis_pid_totaloutput = 0;

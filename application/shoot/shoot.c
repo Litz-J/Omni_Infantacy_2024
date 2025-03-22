@@ -159,7 +159,7 @@ void ShootInit()
 
 float speedref=0;
 // float torque2006 ;
-float fric_v=42000;
+float fric_v=38000;
 //48000,31m/s
 //44500,26.7m/s
 

@@ -286,15 +286,15 @@ static void MouseKeySet()
     }
 
     chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].w *  chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].s * chassis_speed_mouse; // 系数待测
-    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].a * chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].d * chassis_speed_mouse;
+    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].d * chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].a * chassis_speed_mouse;
 
     //右键开自瞄
-    if(rc_data[TEMP].mouse.press_r==1)
+    if(rc_data[TEMP].mouse.press_r==0)
     {
         gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 6.0f; // 系数待测
         gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 6.0f;
     }
-    else if(rc_data[TEMP].mouse.press_r==0&&
+    else if(rc_data[TEMP].mouse.press_r==1&&
         vision_recv_data->offline!=1&&
         vision_recv_data->target_state==TRACKING)
     {
@@ -447,7 +447,7 @@ static void MouseKeySet()
     switch (rc_data[TEMP].key[KEY_PRESS].shift) // 按shift
     {
     case 1:
-        // chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
+        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
         break;
     default:
 
@@ -551,6 +551,7 @@ void RobotCMDTask()
 
     // 根据遥控器左侧开关,确定当前使用的控制模式为遥控器调试还是键鼠
     if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
+    // if (switch_is_mid(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
     {
         RemoteControlSet();
     }
@@ -559,6 +560,7 @@ void RobotCMDTask()
         MouseKeySet();
     }
     else if(switch_is_mid(rc_data[TEMP].rc.switch_left))
+    // else if(switch_is_down(rc_data[TEMP].rc.switch_left))
     {
         RemoteShootSet();
     }
