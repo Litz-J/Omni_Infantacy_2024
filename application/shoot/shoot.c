@@ -34,7 +34,7 @@ loader_mode_e ShootModGet(void)
     static uint8_t reverse_cnt = 0;
 
     //卡弹检测
-    if(loader->motor_controller.speed_PID.ERRORHandler.ERRORCount>=50)
+    if(loader->motor_controller.speed_PID.ERRORHandler.ERRORCount>=70)
     {
         shoot_cmd_recv.load_mode = LOAD_REVERSE;
         if(Last_Mode != LOAD_REVERSE)
@@ -159,7 +159,7 @@ void ShootInit()
 
 float speedref=0;
 // float torque2006 ;
-float fric_v=38000;
+float fric_v=36000;
 //48000,31m/s
 //44500,26.7m/s
 
@@ -197,26 +197,26 @@ void ShootTask()
     {
     // 停止拨盘
     case LOAD_STOP:
-        //需要测试这个逻辑行不行，先退弹然后关闭电机输出
-        if(is_loadstop==false)//退弹
-        {
-            DJIMotorOuterLoop(loader, ANGLE_LOOP);                                              // 切换到角度环
-            DJIMotorSetRef(loader, loader->measure.total_angle - ONE_BULLET_DELTA_ANGLE);
-            is_loadstop=true;
-            is_loadenable=false;  
-            hibernate_time = DWT_GetTimeline_ms();                                              // 记录触发指令的时间
-            dead_time = 400;
-            break;
-        }
-        // if(!IS_HIBERNATED)
+        // //需要测试这个逻辑行不行，先退弹然后关闭电机输出
+        // if(is_loadstop==false)//退弹
         // {
-        //     DJIMotorOuterLoop(loader, CURRENT_LOOP);
-        //     DJIMotorStop(loader);
+        //     DJIMotorOuterLoop(loader, ANGLE_LOOP);                                              // 切换到角度环
+        //     DJIMotorSetRef(loader, loader->measure.total_angle - ONE_BULLET_DELTA_ANGLE);
+        //     is_loadstop=true;
+        //     is_loadenable=false;
+        //     hibernate_time = DWT_GetTimeline_ms();                                              // 记录触发指令的时间
+        //     dead_time = 400;
+        //     break;
         // }
+        if(!IS_HIBERNATED)
+        {
+            DJIMotorOuterLoop(loader, CURRENT_LOOP);
+            DJIMotorStop(loader);
+        }
         break;
     // 单发模式,根据鼠标按下的时间,触发一次之后需要进入不响应输入的状态(否则按下的时间内可能多次进入,导致多次发射)
     case LOAD_1_BULLET:                                                                     // 激活能量机关/干扰对方用,英雄用.
-        //DJIMotorEnable(loader);
+        DJIMotorEnable(loader);
         if(!IS_HIBERNATED)
         {
             DJIMotorOuterLoop(loader, ANGLE_LOOP);                                              // 切换到角度环
@@ -236,7 +236,7 @@ void ShootTask()
         break;
     // 三连发,如果不需要后续可能删除
     case LOAD_3_BULLET:
-        //DJIMotorEnable(loader);
+        DJIMotorEnable(loader);
         if(!IS_HIBERNATED)
         {
             DJIMotorOuterLoop(loader, ANGLE_LOOP);                                                  // 切换到速度环
@@ -247,7 +247,7 @@ void ShootTask()
         break;
     // 连发模式,对速度闭环,射频后续修改为可变,目前固定为1Hz
     case LOAD_BURSTFIRE:
-        //DJIMotorEnable(loader);
+        DJIMotorEnable(loader);
         DJIMotorOuterLoop(loader, SPEED_LOOP);
         DJIMotorSetRef(loader, shoot_cmd_recv.shoot_rate * 360 * REDUCTION_RATIO_LOADER / NUM_PER_CIRCLE);
         // DJIMotorOuterLoop(loader, CURRENT_LOOP);
@@ -258,7 +258,7 @@ void ShootTask()
     // 拨盘反转,对速度闭环,后续增加卡弹检测(通过裁判系统剩余热量反馈和电机电流)
     // 也有可能需要从switch-case中独立出来
     case LOAD_REVERSE:
-        // DJIMotorEnable(loader);
+        DJIMotorEnable(loader);
         DJIMotorOuterLoop(loader, SPEED_LOOP);
         DJIMotorSetRef(loader, -shoot_cmd_recv.shoot_rate * 360 * REDUCTION_RATIO_LOADER / NUM_PER_CIRCLE / 2.0f);
         // ...

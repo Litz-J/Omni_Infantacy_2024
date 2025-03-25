@@ -42,11 +42,11 @@ void GimbalInit()
                 .Derivative_LPF_RC= 0.0145,
             },
             .speed_PID = {
-                .Kp = 100,  // 80
-                .Ki = 50, // 150
+                .Kp = 85,  // 80
+                .Ki = 70, // 150
                 .Kd = 0,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
-                .IntegralLimit = 3200,
+                .IntegralLimit = 6000,
                 .MaxOut = 25000, //25000
                 .Derivative_LPF_RC= 0.0900000036,
             },

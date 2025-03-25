@@ -13,6 +13,7 @@
 #include "rm_referee.h"
 #include "user_lib.h"
 #include "rv2_trajectory.h"
+#include "VTM_link.h"
 // bsp
 #include <custom_controller.h>
 
@@ -37,6 +38,7 @@ static Chassis_Ctrl_Cmd_s chassis_cmd_send;      // 发送给底盘应用的信�
 static Chassis_Upload_Data_s chassis_fetch_data; // 从底盘应用接收的反馈信息信息,底盘功率枪口热量与底盘运动状态等
 
 static RC_ctrl_t *rc_data;              // 遥控器数据,初始化时返回
+static VTM_Recv_s *vtm_recv_data;
 static Vision_Recv_s *vision_recv_data; // 视觉接收数据指针,初始化时返回
 static Vision_Send_s vision_send_data;  // 视觉发送数据
 
@@ -63,7 +65,9 @@ BMI088_Data_t bmi088_data;
 void RobotCMDInit()
 {
     rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
-    vision_recv_data = VisionInit(&huart1); // 视觉通信串口
+    vtm_recv_data = VTM_LinkInit(&huart1);
+    // custom_recv_data
+    // vision_recv_data = VisionInit(&huart1); // 视觉通信串口
     // custom_recv_data = CustomControllerInit(&huart1);
 
     gimbal_cmd_pub = PubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
@@ -170,18 +174,18 @@ static void RemoteControlSet()
         gimbal_cmd_send.pitch=PITCH_MIN_ANGLE;
     }
 
-    chassis_speed_rocker=2;
+    chassis_speed_rocker=0.2;
 
     chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r1/660.0f * chassis_speed_rocker; // 竖直方向
     chassis_cmd_send.vy = -(float)rc_data[TEMP].rc.rocker_r_/660.0f * chassis_speed_rocker; // _水平方向
 
-    chassis_cmd_send.wz = 4000.0f;
+    chassis_cmd_send.wz = 2200.0f;
     shoot_cmd_send.shoot_rate = 8;
 }
 
 static void RemoteShootSet()
 {
-    shoot_cmd_send.shoot_rate = 18;
+    shoot_cmd_send.shoot_rate = 10;
     //右上默认状态
     chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
     gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
@@ -244,6 +248,8 @@ static void MouseKeySet()
 {
     uint8_t level=chassis_fetch_data.real_level;
     uint16_t chassis_power_limit=chassis_fetch_data.chassis_power_limit;
+
+    gimbal_cmd_send.gimbal_mode= GIMBAL_GYRO_MODE;
     
     //默认值，防止裁判系统断连时过快
     chassis_speed_mouse=0.4;
@@ -256,33 +262,33 @@ static void MouseKeySet()
     //通过最大能量功率最大速度，都是待测
     if(chassis_power_limit>=40)
     {
-        chassis_speed_mouse=0.45;
+        chassis_speed_mouse=0.6;
         chassis_rotate_speed_mouse=2500;
         chassis_fastrotate_speed_mouse=3500;
     }
     if(chassis_power_limit>=60)
     {
-        chassis_speed_mouse=0.55;
+        chassis_speed_mouse=0.7;
         chassis_rotate_speed_mouse=3500;
         chassis_fastrotate_speed_mouse=4500;
     }
     if(chassis_power_limit>=70)
     {
-        chassis_speed_mouse=0.65;
+        chassis_speed_mouse=0.8;
         chassis_rotate_speed_mouse=3500;
         chassis_fastrotate_speed_mouse=4500;
     }
     if(chassis_power_limit>=90)
     {
-        chassis_speed_mouse=0.75;
-        chassis_rotate_speed_mouse=4500;
+        chassis_speed_mouse=0.9;
+        chassis_rotate_speed_mouse=4000;
         chassis_fastrotate_speed_mouse=6000;
     }
     if(chassis_power_limit>=100)
     {
-        chassis_speed_mouse=0.9;
-        chassis_rotate_speed_mouse=5000;
-        chassis_fastrotate_speed_mouse=8500;
+        chassis_speed_mouse=1.1;
+        chassis_rotate_speed_mouse=4000;
+        chassis_fastrotate_speed_mouse=6500;
     }
 
     chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].w *  chassis_speed_mouse - rc_data[TEMP].key[KEY_PRESS].s * chassis_speed_mouse; // 系数待测
@@ -323,14 +329,14 @@ static void MouseKeySet()
         chassis_cmd_send.load_mode = LOAD_STOP;
         break;
     }
-        
+
     default:
     {
         shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
         chassis_cmd_send.load_mode = LOAD_BURSTFIRE;
         break;
     }
-        
+
     }
     //if(rc_data[TEMP].mouse.press_l==0 | shoot_fetch_data.shoot_status != SHOOT_STOP)
     if(rc_data[TEMP].mouse.press_l==0)
@@ -361,7 +367,7 @@ static void MouseKeySet()
         chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
         break;
     }
-    
+
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_R] % 2) // R键开关弹舱
     {
     case 0:
@@ -370,80 +376,32 @@ static void MouseKeySet()
         chassis_cmd_send.lid_mode = LID_OPEN;
         break;
     }
-        
+
     default:
     {
         shoot_cmd_send.lid_mode = LID_CLOSE;
         chassis_cmd_send.lid_mode = LID_CLOSE;
         break;
     }
-        
+
     }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_F] % 2) // F键开关摩擦轮
     {
     case 0:
-    {
-        shoot_cmd_send.friction_mode = FRICTION_OFF;
-        chassis_cmd_send.friction_mode = FRICTION_OFF;
-        break;
-    }
-        
-    default:
-    {
-        shoot_cmd_send.friction_mode = FRICTION_ON;
-        chassis_cmd_send.friction_mode = FRICTION_ON;
-        break;
-    }
-        
-    }
-    // switch (rc_data[TEMP].key_count[KEY_PRESS][Key_C] % 10) // C键设置底盘功率
-    // {//血量优先
-    // case 0:
-    //     chassis_cmd_send.robot_real_level = 1;
-    //     break;
-    // case 1:
-    //     chassis_cmd_send.robot_real_level = 2;
-    //     break;
-    // case 2:
-    //     chassis_cmd_send.robot_real_level = 3;
-    //     break;
-    // case 3:
-    //     chassis_cmd_send.robot_real_level = 4;
-    //     break;
-    // case 4:
-    //     chassis_cmd_send.robot_real_level = 5;
-    //     break;
-    // case 5:
-    //     chassis_cmd_send.robot_real_level = 6;
-    //     break;
-    // case 6:
-    //     chassis_cmd_send.robot_real_level = 7;
-    //     break;
-    // case 7:
-    //     chassis_cmd_send.robot_real_level = 8;
-    //     break;
-    // case 8:
-    //     chassis_cmd_send.robot_real_level = 9;
-    //     break;
-    // default:
-    //     chassis_cmd_send.robot_real_level = 10;
-    //     break;
-    // }
-    // switch (rc_data[TEMP].key_count[KEY_PRESS][Key_X] % 2) // X键降低底盘功率为前一级
-    // {
-    // case 1:
-    //     {
-    //         if(rc_data[TEMP].key_count[KEY_PRESS][Key_C] > 0)
-    //         {
-    //             rc_data[TEMP].key_count[KEY_PRESS][Key_C]--;
-    //             rc_data[TEMP].key_count[KEY_PRESS][Key_X]++;
-    //         }
+        {
+            shoot_cmd_send.friction_mode = FRICTION_OFF;
+            chassis_cmd_send.friction_mode = FRICTION_OFF;
+            break;
+        }
 
-    //     }
-    //     break;
-    // default:
-    //     break;
-    // }
+    default:
+        {
+            shoot_cmd_send.friction_mode = FRICTION_ON;
+            chassis_cmd_send.friction_mode = FRICTION_ON;
+            break;
+        }
+    }
+
     switch (rc_data[TEMP].key[KEY_PRESS].shift) // 按shift
     {
     case 1:
@@ -465,6 +423,184 @@ static void MouseKeySet()
     }
 
 }
+
+
+static void VTMSet()
+{
+    uint16_t chassis_power_limit=chassis_fetch_data.chassis_power_limit;
+
+    gimbal_cmd_send.gimbal_mode= GIMBAL_GYRO_MODE;
+    shoot_cmd_send.shoot_mode = SHOOT_OFF;
+    shoot_cmd_send.friction_mode = FRICTION_OFF;
+    shoot_cmd_send.load_mode = LOAD_STOP;
+
+    //默认值，防止裁判系统断连时过快
+    chassis_speed_mouse=0.4;
+    chassis_rotate_speed_mouse=2000;
+    chassis_fastrotate_speed_mouse=2500;
+
+    //无接收到底盘功率情况下：
+    chassis_speed_mouse=1.5;
+
+    //通过最大能量功率最大速度，都是待测
+    if(chassis_power_limit>=40)
+    {
+        chassis_speed_mouse=0.6;
+        chassis_rotate_speed_mouse=2500;
+        chassis_fastrotate_speed_mouse=3500;
+    }
+    if(chassis_power_limit>=60)
+    {
+        chassis_speed_mouse=0.7;
+        chassis_rotate_speed_mouse=3500;
+        chassis_fastrotate_speed_mouse=4500;
+    }
+    if(chassis_power_limit>=70)
+    {
+        chassis_speed_mouse=0.8;
+        chassis_rotate_speed_mouse=3500;
+        chassis_fastrotate_speed_mouse=4500;
+    }
+    if(chassis_power_limit>=90)
+    {
+        chassis_speed_mouse=0.9;
+        chassis_rotate_speed_mouse=4000;
+        chassis_fastrotate_speed_mouse=6000;
+    }
+    if(chassis_power_limit>=100)
+    {
+        chassis_speed_mouse=1.1;
+        chassis_rotate_speed_mouse=4000;
+        chassis_fastrotate_speed_mouse=6500;
+    }
+
+    chassis_cmd_send.vx = vtm_recv_data->mouse_key_data[TEMP].key[KEY_PRESS].w *  chassis_speed_mouse
+        - vtm_recv_data->mouse_key_data[TEMP].key[KEY_PRESS].s * chassis_speed_mouse; // 系数待测
+    chassis_cmd_send.vy = vtm_recv_data->mouse_key_data[TEMP].key[KEY_PRESS].d * chassis_speed_mouse
+        - vtm_recv_data->mouse_key_data[TEMP].key[KEY_PRESS].a * chassis_speed_mouse;
+
+    //右键开自瞄
+    if(vtm_recv_data->mouse_key_data[TEMP].mouse.press_r==0)
+    {
+        gimbal_cmd_send.yaw += (float)vtm_recv_data->mouse_key_data[TEMP].mouse.x / 660 * 6.0f; // 系数待测
+        gimbal_cmd_send.pitch += (float)vtm_recv_data->mouse_key_data[TEMP].mouse.y / 660 * 6.0f;
+    }
+    else if(vtm_recv_data->mouse_key_data[TEMP].mouse.press_r==1&&
+        vision_recv_data->offline!=1&&
+        vision_recv_data->target_state==TRACKING)
+    {
+        gimbal_cmd_send.pitch = vision_recv_data->pitch;
+        gimbal_cmd_send.yaw=-vision_recv_data->yaw;
+    }
+
+
+    // 不可以在行代码后面再修改云台目标角度！！
+    // 云台软件限位
+    if(gimbal_cmd_send.pitch>=PITCH_MAX_ANGLE)
+    {
+        gimbal_cmd_send.pitch=PITCH_MAX_ANGLE;
+    }
+    else if(gimbal_cmd_send.pitch<=PITCH_MIN_ANGLE)
+    {
+        gimbal_cmd_send.pitch=PITCH_MIN_ANGLE;
+    }
+
+
+    switch (vtm_recv_data->mouse_key_data[TEMP].key_count[KEY_PRESS][Key_Q] % 3)  //Q设置底盘模式
+    {
+    case 0:
+        chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
+        break;
+    case 1:
+        chassis_cmd_send.chassis_mode = CHASSIS_FOLLOW_GIMBAL_YAW_DIAGONAL;
+        break;
+    default:
+        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
+        break;
+    }
+
+    // shift强制小陀螺
+    switch (vtm_recv_data->mouse_key_data[TEMP].key[KEY_PRESS].shift) // 按shift
+    {
+    case 1:
+        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
+        break;
+    default:
+
+        break;
+    }
+    switch (rc_data[TEMP].key[KEY_PRESS].v) // 按下V小陀螺加速
+    {
+    case 1:
+        chassis_cmd_send.wz = chassis_fastrotate_speed_mouse;
+        break;
+    default:
+        // chassis_cmd_send.wz = 3500.0f + 500.0f * float_constrain(arm_sin_f32(DWT_GetTimeline_s()*3.14*0.85)*arm_sin_f32(DWT_GetTimeline_s()*3.14*0.375),-0.45,0.675);
+            chassis_cmd_send.wz = chassis_rotate_speed_mouse;
+        break;
+    }
+
+    // 打开测试模式
+    switch (vtm_recv_data->mouse_key_data[TEMP].key_count[KEY_PRESS][Key_G] % 2)
+    {
+    case 0://默认状态：测试模式
+        chassis_speed_mouse=0.5;
+        chassis_rotate_speed_mouse=2400;
+        chassis_fastrotate_speed_mouse=2400;
+        break;
+    case 1:     // 正式模式
+    default:
+    break;
+
+    }
+
+    // 发弹设置
+    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_F] % 2) // F键开关摩擦轮
+    {
+    case 0:
+        {
+            shoot_cmd_send.friction_mode = FRICTION_OFF;
+            chassis_cmd_send.friction_mode = FRICTION_OFF;
+            break;
+        }
+
+    default:
+        {
+            shoot_cmd_send.friction_mode = FRICTION_ON;
+            chassis_cmd_send.friction_mode = FRICTION_ON;
+            break;
+        }
+    }
+
+    switch(vtm_recv_data->mouse_key_data[TEMP].mouse.press_l)
+    {
+    case 1:
+        shoot_cmd_send.shoot_rate=10;
+        chassis_cmd_send.shoot_mode = SHOOT_ON;
+        break;
+    default:
+        shoot_cmd_send.load_mode = LOAD_STOP;
+        chassis_cmd_send.load_mode = LOAD_STOP;
+        chassis_cmd_send.shoot_mode = SHOOT_OFF;
+        break;
+    }
+
+    // 打开测试模式
+    switch (vtm_recv_data->mouse_key_data[TEMP].key_count[KEY_PRESS][Key_G] % 2)
+    {
+    case 0://默认状态：测试模式
+        chassis_speed_mouse=0.8;
+        chassis_rotate_speed_mouse=2000;
+        chassis_fastrotate_speed_mouse=2000;
+        break;
+    case 1:     // 正式模式
+    default:
+    break;
+
+    }
+
+}
+
 
 //对速度进行处理，包括归一化、小陀螺速度重新分配等
 static void SpeedDistribution()
@@ -550,19 +686,25 @@ void RobotCMDTask()
     VisionTrajectory();
 
     // 根据遥控器左侧开关,确定当前使用的控制模式为遥控器调试还是键鼠
-    if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
+    // if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
     // if (switch_is_mid(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
+    if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
     {
         RemoteControlSet();
     }
-    else if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
+    // else if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
+    else if (switch_is_mid(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
     {
         MouseKeySet();
     }
-    else if(switch_is_mid(rc_data[TEMP].rc.switch_left))
-    // else if(switch_is_down(rc_data[TEMP].rc.switch_left))
+    // else if(switch_is_mid(rc_data[TEMP].rc.switch_left))
+    else if(switch_is_down(rc_data[TEMP].rc.switch_left))
     {
         RemoteShootSet();
+    }
+    else if(vtm_recv_data->connected_flag == VTM_CONNECTED)
+    {
+        VTMSet();
     }
 
 
