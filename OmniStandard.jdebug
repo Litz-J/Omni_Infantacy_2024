@@ -33,7 +33,7 @@ void OnProjectLoad (void) {
   //
   // User settings
   //
-  Edit.SysVar (VAR_HSS_SPEED, FREQ_500_HZ);
+  Edit.SysVar (VAR_HSS_SPEED, FREQ_200_HZ);
   File.Open ("$(ProjectDir)/cmake-build-debug-ninja-arm/HYOmni.elf");
 }
 

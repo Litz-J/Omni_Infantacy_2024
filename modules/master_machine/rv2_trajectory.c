@@ -268,7 +268,7 @@ trajectory_target_s *rv2_trajectory_init()
 
     //以下设置参数
     st.bias_time = 100;
-    st.s_bias = 0.05;  //0.2
+    st.s_bias = 0.055;  //0.2
     st.z_bias = 0.00;   //0.19
     st.armor_id = ARMOR_INFANTRY3;
     st.armor_num = ARMOR_NUM_NORMAL;

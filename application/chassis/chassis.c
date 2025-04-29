@@ -78,7 +78,7 @@ void ChassisInit()
             },
             .current_PID = {//没啥用
                 .Kp = 0.8,  // 0.4
-                .Ki = 0.08, // 0
+                .Ki = 0.00, // 0
                 .Kd = 0,
                 .IntegralLimit = 5000,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
@@ -242,7 +242,7 @@ static void LimitChassisOutput()
 
     static float chassis_power_limit,chassis_input_power,chassis_power_buffer;//裁判系统获取的功率限制值、当前功率值、当前缓冲能量值
     static float chassis_power_max;//计算使用的最大功率值
-    static float chassis_power_offset = -10; // 功率冗余，可修改
+    static float chassis_power_offset = -5; // 功率冗余，可修改
 
 
     chassis_pid_totaloutput = 0;
@@ -256,7 +256,7 @@ static void LimitChassisOutput()
     if(chassis_power_limit==0 && chassis_power_buffer == 0)
     {
         //说明裁判系统没连上
-        chassis_power_limit = 80;
+        chassis_power_limit = 500;
     }
     else
     {
@@ -418,7 +418,7 @@ void ChassisTask()
         {
             chassis_cmd_recv.offset_angle -= 360;
         }
-        chassis_cmd_recv.wz = -4.0f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        chassis_cmd_recv.wz = -1.0f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
 
 

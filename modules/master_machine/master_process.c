@@ -88,7 +88,6 @@ static void DecodeVision()
 
     rv2_trajectory_passin(rv2_recv,&send_data.yaw);
 
-    // TODO: code to resolve flag_register;
     vision_recv_cnt++;
 }
 
@@ -111,7 +110,6 @@ Vision_Recv_s *VisionInit(UART_HandleTypeDef *_handle)
     rv2_recv=rv2_protocol_init();
     trajectory=rv2_trajectory_init();
 
-    //recv_data.target=trajectory;
 
     return &recv_data;
 }

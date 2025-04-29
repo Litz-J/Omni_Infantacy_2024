@@ -65,9 +65,9 @@ BMI088_Data_t bmi088_data;
 void RobotCMDInit()
 {
     rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
-    vtm_recv_data = VTM_LinkInit(&huart1);
+    // vtm_recv_data = VTM_LinkInit(&huart1);
     // custom_recv_data
-    // vision_recv_data = VisionInit(&huart1); // 视觉通信串口
+    vision_recv_data = VisionInit(&huart1); // 视觉通信串口
     // custom_recv_data = CustomControllerInit(&huart1);
 
     gimbal_cmd_pub = PubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
@@ -174,10 +174,10 @@ static void RemoteControlSet()
         gimbal_cmd_send.pitch=PITCH_MIN_ANGLE;
     }
 
-    chassis_speed_rocker=0.2;
+    chassis_speed_rocker=2.4;
 
-    chassis_cmd_send.vx = (float)rc_data[TEMP].rc.rocker_r1/660.0f * chassis_speed_rocker; // 竖直方向
-    chassis_cmd_send.vy = -(float)rc_data[TEMP].rc.rocker_r_/660.0f * chassis_speed_rocker; // _水平方向
+    chassis_cmd_send.vx = float_deadband((float)rc_data[TEMP].rc.rocker_r1,-50.0f,50.0f)/660.0f * chassis_speed_rocker; // 竖直方向
+    chassis_cmd_send.vy = -float_deadband((float)rc_data[TEMP].rc.rocker_r_,-50.0f,50.0f)/660.0f * chassis_speed_rocker; // _水平方向
 
     chassis_cmd_send.wz = 2200.0f;
     shoot_cmd_send.shoot_rate = 8;
@@ -209,8 +209,8 @@ static void RemoteShootSet()
             gimbal_cmd_send.lid_mode=LID_CLOSE;
         }
 
-        gimbal_cmd_send.yaw += 0.002f * (float)rc_data[TEMP].rc.rocker_l_;
-        gimbal_cmd_send.pitch -= 0.002f * (float)rc_data[TEMP].rc.rocker_l1;
+        gimbal_cmd_send.yaw += 0.001f * (float)rc_data[TEMP].rc.rocker_l_;
+        gimbal_cmd_send.pitch -= 0.001f * (float)rc_data[TEMP].rc.rocker_l1;
 
     }
     else
@@ -321,7 +321,7 @@ static void MouseKeySet()
     }
 
 
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 2) // E键设置发射模式
+    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 2) // E键设置是否允许发射
     {
     case 0:
     {
@@ -329,7 +329,6 @@ static void MouseKeySet()
         chassis_cmd_send.load_mode = LOAD_STOP;
         break;
     }
-
     default:
     {
         shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
@@ -347,7 +346,7 @@ static void MouseKeySet()
     }
     if(rc_data[TEMP].mouse.press_l==1)
     {
-        shoot_cmd_send.shoot_rate=10;
+        shoot_cmd_send.shoot_rate = 14;
         chassis_cmd_send.shoot_mode = SHOOT_ON;
     }
     // else if(rc_data[TEMP].mouse.press_r==1)
@@ -686,19 +685,17 @@ void RobotCMDTask()
     VisionTrajectory();
 
     // 根据遥控器左侧开关,确定当前使用的控制模式为遥控器调试还是键鼠
-    // if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
+    if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
     // if (switch_is_mid(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
-    if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
+    // if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
     {
         RemoteControlSet();
     }
-    // else if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
-    else if (switch_is_mid(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
+    else if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
     {
         MouseKeySet();
     }
-    // else if(switch_is_mid(rc_data[TEMP].rc.switch_left))
-    else if(switch_is_down(rc_data[TEMP].rc.switch_left))
+    else if(switch_is_mid(rc_data[TEMP].rc.switch_left))
     {
         RemoteShootSet();
     }

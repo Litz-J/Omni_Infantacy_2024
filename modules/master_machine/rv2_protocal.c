@@ -8,7 +8,6 @@
 #include <crc16.h>
 #include <string.h>
 
-static uint8_t send_color;
 
 static rv2_recv_protocol_s rv2_recv_data={0};
 
@@ -32,8 +31,8 @@ void build_rv2_send_data(Vision_Send_s *send,uint8_t *tx_buf,uint16_t *tx_buf_le
     rv2_send_data.pitch=send->pitch;
     rv2_send_data.yaw=send->yaw;
     //对局信息部分
-    rv2_send_data.detect_color=send->enemy_color==COLOR_RED ? 1 : 0;          //自身颜色0为红，1为蓝
-    rv2_send_data.detect_color=send_color;
+    rv2_send_data.detect_color=send->enemy_color==COLOR_RED ? 0 : 1;
+    // rv2_send_data.detect_color=send_color;
 
     // rv2_send_data.reset_tracker=0;
 
