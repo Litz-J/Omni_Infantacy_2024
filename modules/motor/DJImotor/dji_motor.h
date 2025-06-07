@@ -22,6 +22,7 @@
 #include "daemon.h"
 
 #define DJI_MOTOR_CNT 12
+#define DJI_MOTOR_PWR_LIMIT_CNT 4
 
 /* 滤波系数设置为1的时候即关闭滤波 */
 #define SPEED_SMOOTH_COEF 0.85f      // 最好大于0.85
@@ -138,12 +139,11 @@ void DJIMotorEnable(DJIMotorInstance *motor);
 void DJIMotorOuterLoop(DJIMotorInstance *motor, Closeloop_Type_e outer_loop);
 
 /**
- * @brief 设置DJI电机功率限制后的输出值
+ * @brief 设置DJI功率限制最大值
  *        
  *
- * @param motor 要设置的电机
- * @param output_limit 设定值
+ * @param power 功率限制最大值，单位W
  */
-void DJIMotorSetOutputLimit(DJIMotorInstance *motor, float output_limit);
+void DJIMotorSetPowerMax(float power);
 
 #endif // !DJI_MOTOR_H

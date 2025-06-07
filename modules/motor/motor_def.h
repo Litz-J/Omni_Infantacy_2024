@@ -104,7 +104,6 @@ typedef struct
 
     float pid_ref; // 将会作为每个环的输入和输出顺次通过串级闭环
     float pid_output;
-    float pid_output_limit;//经过输出限幅的值。如果有标志位将会用这个来发送
 } Motor_Controller_s;
 
 /* 电机类型枚举 */

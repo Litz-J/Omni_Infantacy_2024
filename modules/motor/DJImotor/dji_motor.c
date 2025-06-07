@@ -1,12 +1,27 @@
 #include "dji_motor.h"
+#include "power_control.h"
 #include "general_def.h"
 #include "bsp_dwt.h"
 #include "bsp_log.h"
 #include "user_lib.h"
 
 static uint8_t idx = 0; // register idx,是该文件的全局电机索引,在注册时使用
+static uint8_t pwr_limit_idx=0;      //需要功率控制的电机计数
 /* DJI电机的实例,此处仅保存指针,内存的分配将通过电机实例初始化时通过malloc()进行 */
 static DJIMotorInstance *dji_motor_instance[DJI_MOTOR_CNT] = {NULL}; // 会在control任务中遍历该指针数组进行pid计算
+static uint8_t dji_motor_power_limit_id[DJI_MOTOR_CNT] = {0};     //需要进行功率控制的dji电机索引号
+
+/*功率限制使用的电机系数*/
+static float k1[DJI_MOTOR_PWR_LIMIT_CNT]={DEFAULT_K1 , DEFAULT_K1,DEFAULT_K1,DEFAULT_K1};
+static float k2[DJI_MOTOR_PWR_LIMIT_CNT]={DEFAULT_K2 , DEFAULT_K2,DEFAULT_K2,DEFAULT_K2};
+static float const_coefficient[DJI_MOTOR_PWR_LIMIT_CNT]={DEFAULT_CONSTANT_COEFFICIENT , DEFAULT_CONSTANT_COEFFICIENT,DEFAULT_CONSTANT_COEFFICIENT,DEFAULT_CONSTANT_COEFFICIENT};
+/*功率限制使用的临时变量*/
+static float input_power[DJI_MOTOR_PWR_LIMIT_CNT];           //电机输入功率
+static float input_power_total;                              //功率限制的电机的总输入功率
+
+
+
+static float power_max;
 
 /**
  * @brief 由于DJI电机发送以四个一组的形式进行,故对其进行特殊处理,用6个(2can*3group)can_instance专门负责发送
@@ -185,6 +200,10 @@ DJIMotorInstance *DJIMotorInit(Motor_Init_Config_s *config)
     config->can_init_config.id = instance;                        // set id,eq to address(it is identity)
     instance->motor_can_instance = CANRegister(&config->can_init_config);
 
+    // 如果需要使用功率控制，则额外将索引加入到功率控制的数组中
+    if (instance->motor_settings.power_limit_flag == POWER_LIMIT_ON)
+        dji_motor_power_limit_id[pwr_limit_idx++] = idx;
+
     // 注册守护线程
     Daemon_Init_Config_s daemon_config = {
         .callback = DJIMotorLostCallback,
@@ -260,9 +279,9 @@ void DJIMotorSetRef(DJIMotorInstance *motor, float ref)
     motor->motor_controller.pid_ref = ref;
 }
 
-void DJIMotorSetOutputLimit(DJIMotorInstance *motor, float output_limit)
+void DJIMotorSetPowerMax(float power)
 {
-    motor->motor_controller.pid_output_limit=output_limit;
+    power_max=power;
 }
 
 // 为所有电机实例计算三环PID,发送控制报文
@@ -277,7 +296,7 @@ void DJIMotorControl()
     DJI_Motor_Measure_s *measure;           // 电机测量值
     float pid_measure, pid_ref;             // 电机PID测量值和设定值
 
-    // 遍历所有电机实例,进行串级PID的计算并设置发送报文的值
+    // 遍历所有电机实例,进行串级PID的计算。
     for (size_t i = 0; i < idx; ++i)
     { // 减小访存开销,先保存指针引用
         motor = dji_motor_instance[i];
@@ -331,12 +350,6 @@ void DJIMotorControl()
         // 获取最终输出，
         set = (int16_t)pid_ref;
 
-        //如果有功率限制则用pid_output
-        if(motor_setting->power_limit_flag==POWER_LIMIT_ON)
-        {
-            set=(int16_t)motor_controller->pid_output_limit;
-        }
-
         // 分组填入发送数据
         group = motor->sender_group;
         num = motor->message_num;
@@ -345,7 +358,78 @@ void DJIMotorControl()
 
         // 若该电机处于停止状态,直接将buff置零
         if (motor->stop_flag == MOTOR_STOP)
-            memset(sender_assignment[group].tx_buff + 2 * num, 0, sizeof(uint16_t   ));
+            memset(sender_assignment[group].tx_buff + 2 * num, 0, sizeof(uint16_t));
+    }
+
+    // 功率限制计算
+    input_power_total=0;
+    for (size_t i = 0; i < pwr_limit_idx; ++i)
+    {
+        motor = dji_motor_instance[dji_motor_power_limit_id[i]];          //保存指针方便访问
+
+        // 取出对应id的参数进行计算
+        input_power[i] = TORQUE_COEFFICIENT * motor->measure.speed_rpm * motor->motor_controller.pid_output
+          + k2[i] * float_Square(motor->measure.speed_rpm)
+          + k1[i] * float_Square(motor->motor_controller.pid_output)
+          + const_coefficient[i];
+        if (input_power[i] < 0)
+        {
+            // 对于总能量输出，忽略不消耗能量的电机。
+            continue;
+        }
+        input_power_total+=input_power[i];
+    }
+    if (input_power_total > power_max) // 超出功率
+    {
+        float output_zoom_coeff = power_max / input_power_total;
+        for (size_t i = 0; i < pwr_limit_idx; i++)
+        {
+            motor = dji_motor_instance[dji_motor_power_limit_id[i]];
+            //将当前输出下的电机功率进行缩放，获得新的电机功率
+            input_power[i] *= output_zoom_coeff;
+            if (input_power[i] < 0)
+            {
+                // 依旧忽略不耗电的电机
+                continue;
+            }
+
+            //求根公式法解力矩功率与实际电机功率的一元二次方程
+            float a = k1[i];
+            float b = TORQUE_COEFFICIENT * motor->measure.speed_rpm;
+            float c = k2[i] * float_Square(motor->measure.speed_rpm)
+                - input_power[i] + const_coefficient[i];
+            // k2 * chassis_power_control->motor_chassis[i].chassis_motor_measure->speed_rpm * chassis_power_control->motor_chassis[i].chassis_motor_measure->speed_rpm - scaled_give_power[i] + constant;
+
+            // 依据原输出特性选择根
+            float temp=0;
+            if (motor->motor_controller.pid_output > 0)
+            {   //正根
+                temp = (-b + Sqrt(b * b - 4 * a * c)) / (2 * a);
+            }
+            else
+            {
+                temp = (-b - Sqrt(b * b - 4 * a * c)) / (2 * a);
+            }
+            motor->motor_controller.pid_output=temp;
+        }
+    }
+
+
+    // 设置发送报文
+    for (size_t i = 0; i < idx; ++i)
+    {
+        motor = dji_motor_instance[i];
+        // 获取最终输出，
+        set = (int16_t)motor->motor_controller.pid_output;
+        // 分组填入发送数据
+        group = motor->sender_group;
+        num = motor->message_num;
+        sender_assignment[group].tx_buff[2 * num] = (uint8_t)(set >> 8);         // 低八位
+        sender_assignment[group].tx_buff[2 * num + 1] = (uint8_t)(set & 0x00ff); // 高八位
+
+        // 若该电机处于停止状态,直接将buff置零
+        if (motor->stop_flag == MOTOR_STOP)
+            memset(sender_assignment[group].tx_buff + 2 * num, 0, sizeof(uint16_t));
     }
 
     // 遍历flag,检查是否要发送这一帧报文

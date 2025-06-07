@@ -230,28 +230,14 @@ static void LimitChassisOutput()
     //标示是否处在缓冲能量低状态
     static bool isLowBuffer = false;
 
-    //三个系数
-    static float toque_coefficient = 1.99688994e-6f; // (20/16384)*(0.3)*(187/3591)/9.55
-    static float k1 = 1.26e-07;                      // k1，9.50000043e-08
-    static float k2 = 1.95000013e-07;                // k2
-    static float constant_coefficient = 3.5f;
-
-    /*功率限制使用的临时变量*/
-    static float chassis_pid_output[4];
-    static float chassis_pid_totaloutput;
-
     static float chassis_power_limit,chassis_input_power,chassis_power_buffer;//裁判系统获取的功率限制值、当前功率值、当前缓冲能量值
     static float chassis_power_max;//计算使用的最大功率值
     static float chassis_power_offset = -5; // 功率冗余，可修改
 
-
-    chassis_pid_totaloutput = 0;
     chassis_power_limit = referee_data->GameRobotState.chassis_power_limit; // 从裁判系统获取的能量限制
 
     chassis_input_power = referee_data->PowerHeatData.chassis_power;
     chassis_power_buffer = referee_data->PowerHeatData.chassis_power_buffer;
-
-
 
     if(chassis_power_limit==0 && chassis_power_buffer == 0)
     {
@@ -260,16 +246,7 @@ static void LimitChassisOutput()
     }
     else
     {
-        if (chassis_power_limit >= 110)
-        {
-            chassis_power_limit = 110;
-        }
-
-
-
-        // 用一个系数拟合补偿
-        // chassis_power_offset = -1 * CHASSIS_POWER_COFFICIENT * (chassis_power_limit)-0;
-
+        chassis_power_limit = float_constrain(chassis_power_limit,0,120);
 
         if (isLowBuffer)
         {
@@ -293,54 +270,8 @@ static void LimitChassisOutput()
     // 根据缓冲能量和当前功率限制，计算最大功率值
     chassis_power_max = chassis_power_limit + chassis_power_offset;
 
-    // 参考西交利物浦
-    for (int i = 0; i < 4; i++)
-    {
-        chassis_pid_output[i] = toque_coefficient * chassis_motor_instance[i]->measure.speed_rpm * chassis_motor_instance[i]->motor_controller.pid_output + k2 * float_Square(chassis_motor_instance[i]->measure.speed_rpm) + k1 * float_Square(chassis_motor_instance[i]->motor_controller.pid_output) + constant_coefficient;
-        if (chassis_pid_output[i] < 0)
-        {
-            continue;
-        }
-        else
-        {
-            chassis_pid_totaloutput += chassis_pid_output[i];
-        }
-    }
-
-    if (chassis_pid_totaloutput > chassis_power_max) // 超出功率
-    {
-        output_zoom_coeff = chassis_power_max / chassis_pid_totaloutput;
-        for (int i = 0; i < 4; i++)
-        {
-            chassis_pid_output[i] *= output_zoom_coeff;
-            if (chassis_pid_output[i] < 0)
-            {
-                continue;
-            }
-
-            //公式法解力矩功率与实际电机功率的一元二次方程
-            float a = k1;
-            float b = toque_coefficient * chassis_motor_instance[i]->measure.speed_rpm;
-            float c = k2 * float_Square(chassis_motor_instance[i]->measure.speed_rpm) - chassis_pid_output[i] + constant_coefficient;
-            // k2 * chassis_power_control->motor_chassis[i].chassis_motor_measure->speed_rpm * chassis_power_control->motor_chassis[i].chassis_motor_measure->speed_rpm - scaled_give_power[i] + constant;
-
-            if (chassis_motor_instance[i]->motor_controller.pid_output > 0)
-            {
-                float temp = (-b + Sqrt(b * b - 4 * a * c)) / (2 * a);
-                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp, 15000));
-            }
-            else
-            {
-                float temp = (-b - Sqrt(b * b - 4 * a * c)) / (2 * a);
-                DJIMotorSetOutputLimit(chassis_motor_instance[i], abs_limit(temp, 15000));
-            }
-        }
-    }
-    else
-    {
-        for (int i = 0; i < 4; i++)
-            DJIMotorSetOutputLimit(chassis_motor_instance[i], chassis_motor_instance[i]->motor_controller.pid_output);
-    }
+    //不用DJI电机时，需要切换接口
+    DJIMotorSetPowerMax(chassis_power_max);
 }
 
 /**
